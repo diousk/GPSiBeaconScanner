@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <string name="app_name">GPSiBeaconScanner</string>
+    <string name="action_settings">Settings</string>
+	<string name="local_service_started">Scan service running</string>
+	<string name="string_stop_scanning">Stop scanning</string>
+	<string name="string_start_scanning">Start scanning</string>
+	<string name="string_update_result">Update result</string>
+	<string name="string_clear_database">Clear database</string>
+</resources>

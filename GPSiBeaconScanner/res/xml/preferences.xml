@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android" >
+
+    <PreferenceCategory android:title="GPS Settings" >
+        <EditTextPreference
+            android:defaultValue="60"
+            android:key="gpsPeriodOutter_pref"
+            android:summary="Default value = 60 minutes"
+            android:title="Gps tracking time period outter given region" />
+        <EditTextPreference
+            android:defaultValue="2"
+            android:key="gpstracking_pref"
+            android:summary="Default value = 3 minutes"
+            android:title="How many minutes do you want to track for get fix location from gps" />
+        <EditTextPreference
+            android:defaultValue="5"
+            android:key="gpsPeriodIntter_pref"
+            android:summary="Default value = 5 minutes"
+            android:title="Gps tracking time period intter given region" />
+        
+        <!--  25.121711, 121.499363 -->
+        <EditTextPreference
+            android:defaultValue="25.121711"
+            android:key="gpsx1_pref"
+            android:summary=""
+            android:title="Enter first gps address x1" />
+        <EditTextPreference
+            android:defaultValue="121.499363"
+            android:key="gpsy1_pref"
+            android:summary=""
+            android:title="Enter first gps address y1" />
+        
+        <!-- 25.118563, 121.506530 -->
+        <EditTextPreference
+            android:defaultValue="25.118563"
+            android:key="gpsx2_pref"
+            android:summary=""
+            android:title="Enter second gps address x2" />
+        <EditTextPreference
+            android:defaultValue="121.506530"
+            android:key="gpsy2_pref"
+            android:summary=""
+            android:title="Enter second gps address y2" />
+    </PreferenceCategory>
+    
+    
+    
+    
+    <PreferenceCategory android:title="Beacon Settings" >
+        <EditTextPreference
+            android:name="EditText"
+            android:defaultValue="[Enter a string here]"
+            android:key="editTextPref"
+            android:summary="Enter a string"
+            android:title="Edit Text" />
+
+        <PreferenceScreen
+            android:key="secondPrefScreenPref"
+            android:summary="Click here to go to the second Preference Screen"
+            android:title="Second Preference Screen" >
+            <EditTextPreference
+                android:name="EditText"
+                android:key="secondEditTextPref"
+                android:summary="Enter a string"
+                android:title="Edit Text (second Screen)" />
+        </PreferenceScreen>
+    </PreferenceCategory>
+
+</PreferenceScreen>
