@@ -2,6 +2,8 @@
 package com.demo.gpsibeaconscanner;
 import java.util.LinkedList;
 
+import android.util.Log;
+
 import com.THLight.USBeacon.App.Lib.iBeaconData;
 /** ============================================================== */
 
@@ -11,7 +13,7 @@ public class ScanediBeacon extends iBeaconData
 	public long lastUpdate= 0;
 	private Object mRssiObj = new Object();
 	LinkedList<Byte> mRssiRecv = new LinkedList<Byte>();
-	private int MAX_QUEUE_LENGTH = 300;
+	private int MAX_QUEUE_LENGTH = 20;
 	
 	/** ================================================ */
 	public static ScanediBeacon copyOf(iBeaconData iBeacon)

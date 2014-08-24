@@ -3,12 +3,15 @@ package com.demo.gpsibeaconscanner;
 import android.app.Activity;
 import android.app.Fragment;
 import android.content.Intent;
+import android.database.sqlite.SQLiteDatabase;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.Button;
+import android.widget.ListView;
 
 public class GBMainActivity extends Activity {
 
@@ -42,7 +45,9 @@ public class GBMainActivity extends Activity {
 	}
 
 	public static class GBMainFragment extends Fragment {
-
+		private ListView mLVBLE= null;
+		private Button mBtnDeleteDB;
+		
 		public GBMainFragment() {
 		}
 
@@ -57,6 +62,22 @@ public class GBMainActivity extends Activity {
 		@Override
 		public void onActivityCreated(Bundle savedInstanceState) {
 			super.onActivityCreated(savedInstanceState);
+			// show db data list if exists
+			GBDatabaseHelper sqLiteOpenHelper = new GBDatabaseHelper(this.getActivity());
+			
+			mLVBLE = (ListView)(this.getView().findViewById(R.id.data_list));
+			GBCursorAdapter adapter = new GBCursorAdapter(
+			        this.getActivity(), R.layout.data_list_row, sqLiteOpenHelper.getAllDBData(),0);
+			mLVBLE.setAdapter(adapter);
+
+			mBtnDeleteDB = (Button)(this.getView().findViewById(R.id.btn_delete_db));
+			mBtnDeleteDB.setOnClickListener(new View.OnClickListener() {
+				
+				@Override
+				public void onClick(View v) {
+					GBDatabaseHelper.getInstance(getActivity()).deleteTable();
+				}
+			});
 		}
 
 		@Override

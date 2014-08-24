@@ -1,7 +1,11 @@
 package com.demo.gpsibeaconscanner;
 
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 
 import android.app.Notification;
 import android.app.Service;
@@ -31,8 +35,8 @@ public class GBScanService extends Service implements iBeaconScanManager.OniBeac
 	private Object mBeaconsObj = new Object();
 	
 	private int mEachScanInterval = 30000; //default 30s,  but needless???
-	private int mEachScanTime = 10000; //default 10s
-	private int mBeaconTimeout = 10000; //default 10s
+	private int mEachScanTime = 5000; //default 5s
+	private int mBeaconTimeout = 10000; //default 10s, means invalid if too old
 	
 	private final static String ACTION_SCANNING_START = "scanning.start"; // should be trigger by alarm manager
 	private final static String ACTION_DB_UPDATED = "db.updated";
@@ -43,6 +47,10 @@ public class GBScanService extends Service implements iBeaconScanManager.OniBeac
 	private final static int MSG_STOP_ALL_SCAN = 2005;
 	private final static int MSG_UPDATE_DATABASE = 2006;
 
+	private final static int TYPE_DATA_IBEACON = 101;
+	private final static int TYPE_DATA_GPS = 102;
+	private final static String TYPE_STRING_IBEACON = "iBeacon";
+	private final static String TYPE_STRING_GPS = "GPS";
 	@Override
 	public IBinder onBind(Intent intent) {
 		return null;
@@ -169,25 +177,41 @@ public class GBScanService extends Service implements iBeaconScanManager.OniBeac
 			}
 
 			//TODO : filter only specified UUIDs, if not, just return;
-
+			log("beacon : " + iBeacon.beaconUuid + ", rssi: " + iBeacon.rssi + " scanned");
 			if(null == beacon) {
 				beacon= ScanediBeacon.copyOf(iBeacon);
 				miBeacons.add(beacon);
 			} else {
 				beacon.rssi= beacon.getCalibratedRssi(iBeacon.rssi);
 			}
-
+			log("beacon : getCalibratedRssi : " + beacon.rssi);
 			beacon.lastUpdate= currTime;
 		}
 	}
 
 	private void updateDatabase(int type) {
 		// TODO: if type is ibeacon data
-		synchronized (mBeaconsObj) {
-			//miBeacons
+		if (TYPE_DATA_IBEACON == type) {
+			synchronized (mBeaconsObj) {
+				log("updateDatabase - TYPE_DATA_IBEACON " + miBeacons.size());
+
+				GBDatabaseHelper dbHelper =
+						GBDatabaseHelper.getInstance(getBaseContext());
+				for (ScanediBeacon beacon : miBeacons) {
+					HashMap<String, String> dataValues =
+							new HashMap<String, String>();
+					dataValues.put(GBDatabaseHelper.COLUMN_TYPE, TYPE_STRING_IBEACON);
+					dataValues.put(GBDatabaseHelper.COLUMN_DATA, "" + beacon.beaconUuid);
+					
+					SimpleDateFormat sdf = new SimpleDateFormat("yyyy/MM/dd HH:mm:ss", Locale.getDefault());
+					Date resultdate = new Date(beacon.lastUpdate);
+					dataValues.put(GBDatabaseHelper.COLUMN_TIMESTAMP, sdf.format(resultdate));
+					dbHelper.insertData(dataValues);
+				}
+			}
+		} else if (TYPE_DATA_GPS == type) {
+			// TODO: else if gps data
 		}
-		
-		// TODO: else if gps data
 	}
 
     private class ScanHandler extends Handler {
@@ -198,13 +222,15 @@ public class GBScanService extends Service implements iBeaconScanManager.OniBeac
 			switch (msg.what) {
 			case MSG_START_SCAN_GPS :
 			{
-				
+				// TODO: complete this
+				log("MSG_START_SCAN_GPS");
 			}
 				break;
 			case MSG_START_SCAN_IBEACON :
 			{
+				log("MSG_START_SCAN_IBEACON");
 				// TODO: clean up miBeacons list before start scanning
-				
+				miBeacons.clear();
 				int timeForScaning = msg.arg1;
 				miScaner.startScaniBeacon(timeForScaning); //asynchronous
 				this.sendMessageDelayed(
@@ -214,25 +240,31 @@ public class GBScanService extends Service implements iBeaconScanManager.OniBeac
 				break;
 			case MSG_STOP_SCAN_GPS :
 			{
-				
+				log("MSG_STOP_SCAN_GPS");
 			}
 				break;
 			case MSG_STOP_SCAN_IBEACON :
 			{
+				log("MSG_STOP_SCAN_IBEACON");
 				miScaner.stopScaniBeacon();
 				// TODO: verify valid iBeacon (some too old)
 				verifyValidiBeacons();
+				// update database
+				this.sendMessage(this.obtainMessage(
+						MSG_UPDATE_DATABASE, TYPE_DATA_IBEACON, 0));
 			}
 				break;
 			case MSG_STOP_ALL_SCAN :
 			{
-				
+				log("MSG_STOP_ALL_SCAN");
 			}
 				break;
 			case MSG_UPDATE_DATABASE :
 			{
+				log("MSG_UPDATE_DATABASE");
 				// TODO: implement update database
-				//updateDatabase();
+				int updateType = msg.arg1;
+				updateDatabase(updateType);
 
 				// broadcast ACTION_SCANNING_COMPLETED
 				Intent intent = new Intent(ACTION_DB_UPDATED);
