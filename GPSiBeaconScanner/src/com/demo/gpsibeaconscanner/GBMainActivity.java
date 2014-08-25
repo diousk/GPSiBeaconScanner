@@ -1,11 +1,15 @@
 package com.demo.gpsibeaconscanner;
 
 import android.app.Activity;
+import android.app.AlertDialog;
 import android.app.Fragment;
 import android.bluetooth.BluetoothAdapter;
 import android.content.Context;
+import android.content.DialogInterface;
 import android.content.Intent;
+import android.location.LocationManager;
 import android.os.Bundle;
+import android.provider.Settings;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.Menu;
@@ -15,6 +19,7 @@ import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.CompoundButton;
 import android.widget.ListView;
+import android.widget.Toast;
 import android.widget.ToggleButton;
 
 public class GBMainActivity extends Activity {
@@ -56,6 +61,8 @@ public class GBMainActivity extends Activity {
 		private Context mContext;
 		private final static int REQ_ENABLE_BT = 1001;
 		private final static int REQ_ENABLE_GPS = 1002;
+		private boolean gpsEnable = false;
+		private LocationManager mLocationManager;
 		public GBMainFragment() {
 		}
 
@@ -73,21 +80,24 @@ public class GBMainActivity extends Activity {
 			setupViews();
 			if (checkBTEnabled()) {
 			    // BT on, check GPS
+				checkGPSEnabled();
 			}
 		}
 
         @Override
         public void onActivityResult(int requestCode, int resultCode, Intent data) {
-            log("onActivityResult()");
+            log("onActivityResult() " + requestCode);
             switch(requestCode) {
                 case REQ_ENABLE_BT:
                     if(RESULT_OK == resultCode) {
                         log("REQ_ENABLE_BT - RESULT_OK");
-                        //check GPS
+                        checkGPSEnabled();
                     }
                     break;
                 case REQ_ENABLE_GPS:
-                    // TODO: implement this
+        	        mLocationManager = (LocationManager) mContext.getSystemService(Context.LOCATION_SERVICE);
+        	        gpsEnable = mLocationManager.isProviderEnabled(LocationManager.GPS_PROVIDER);
+        	        log("Gps setting: " + gpsEnable);
                     break;
             }
         }
@@ -100,6 +110,28 @@ public class GBMainActivity extends Activity {
 		        return false;
 		    }
 		    return true;
+        }
+		
+		private void checkGPSEnabled() {
+	        mLocationManager = (LocationManager) mContext.getSystemService(Context.LOCATION_SERVICE);
+	        boolean gpsEnable = mLocationManager.isProviderEnabled(LocationManager.GPS_PROVIDER);
+	        
+	        if(!gpsEnable) {
+	            new AlertDialog.Builder(mContext)
+	                .setIcon(android.R.drawable.ic_menu_mapmode)
+	                .setTitle("GPS Setting")
+	                .setMessage("GPS is off state. Please turn on GPS.")
+	                .setPositiveButton("Ok", new DialogInterface.OnClickListener() {
+	                    public void onClick(DialogInterface dialog, int which1) {
+	                    	startActivityForResult(new Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS), REQ_ENABLE_GPS);
+	                    }
+	                })
+	                .setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
+	                    public void onClick(DialogInterface dialog, int which) {
+	                        Toast.makeText(mContext, "Can not use gps function", Toast.LENGTH_SHORT).show();
+	                    }
+	                }).show();
+	        }
         }
 
         private void setupViews() {
@@ -118,9 +150,15 @@ public class GBMainActivity extends Activity {
                     if (isChecked) {
                         Intent i = new Intent(mContext, GBScanService.class);
                         mContext.startService(i);
+                        
+                        Intent intentStartScan = new Intent("scanning.start");
+                        mContext.sendBroadcast(intentStartScan);
                     } else {
                         Intent i = new Intent(mContext, GBScanService.class);
                         mContext.stopService(i);
+                        
+                        Intent intentStartScan = new Intent("scanning.stop");
+                        mContext.sendBroadcast(intentStartScan);
                     }
                 }
             });
