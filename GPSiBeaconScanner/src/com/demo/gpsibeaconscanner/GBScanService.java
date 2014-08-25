@@ -117,6 +117,7 @@ public class GBScanService extends Service implements iBeaconScanManager.OniBeac
 			mHandler.removeCallbacksAndMessages(null);
 			mHandler = null;
 		}
+		GBUtils.releaseCpuWakeLock();
 	}
 	
 	@Override
@@ -145,20 +146,17 @@ public class GBScanService extends Service implements iBeaconScanManager.OniBeac
 
     private void verifyValidiBeacons() {
     	synchronized (mBeaconsObj) {
-			{
-				long currTime	= System.currentTimeMillis();
+			long currTime	= System.currentTimeMillis();
+
+			int len= miBeacons.size();
+			ScanediBeacon beacon= null;
+
+			for(int i= len- 1; 0 <= i; i--) {
+				beacon= miBeacons.get(i);
 				
-				int len= miBeacons.size();
-				ScanediBeacon beacon= null;
-				
-				for(int i= len- 1; 0 <= i; i--)
+				if(null != beacon && mBeaconTimeout < (currTime- beacon.lastUpdate))
 				{
-					beacon= miBeacons.get(i);
-					
-					if(null != beacon && mBeaconTimeout < (currTime- beacon.lastUpdate))
-					{
-						miBeacons.remove(i);
-					}
+					miBeacons.remove(i);
 				}
 			}
     	}
@@ -191,7 +189,6 @@ public class GBScanService extends Service implements iBeaconScanManager.OniBeac
 	}
 
 	private void updateDatabase(int type) {
-		// TODO: if type is ibeacon data
 		if (TYPE_DATA_IBEACON == type) {
 			synchronized (mBeaconsObj) {
 				log("updateDatabase - TYPE_DATA_IBEACON " + miBeacons.size());
@@ -207,7 +204,7 @@ public class GBScanService extends Service implements iBeaconScanManager.OniBeac
 					        "major:" + beacon.major + " minor:" + beacon.minor);
 					dataValues.put(GBDatabaseHelper.COLUMN_EXTRA2,
 					        "rssi:" + beacon.getAverageRssi()
-					        + ", distance:" + beacon.calDistance());
+					        + " distance:" + beacon.calDistance());
 
 					SimpleDateFormat sdf = new SimpleDateFormat(
 					        "yyyy/MM/dd HH:mm:ss", Locale.getDefault());
@@ -237,8 +234,10 @@ public class GBScanService extends Service implements iBeaconScanManager.OniBeac
 			case MSG_START_SCAN_IBEACON :
 			{
 				log("MSG_START_SCAN_IBEACON");
-				// TODO: clean up miBeacons list before start scanning
-				miBeacons.clear();
+				synchronized (mBeaconsObj) {
+				    miBeacons.clear();
+				}
+
 				int timeForScaning = msg.arg1;
 				miScaner.startScaniBeacon(timeForScaning); //asynchronous
 				this.sendMessageDelayed(
@@ -248,6 +247,7 @@ public class GBScanService extends Service implements iBeaconScanManager.OniBeac
 				break;
 			case MSG_STOP_SCAN_GPS :
 			{
+                // TODO: complete this
 				log("MSG_STOP_SCAN_GPS");
 			}
 				break;
@@ -274,9 +274,16 @@ public class GBScanService extends Service implements iBeaconScanManager.OniBeac
 				int updateType = msg.arg1;
 				updateDatabase(updateType);
 
-				// broadcast ACTION_SCANNING_COMPLETED
-				Intent intent = new Intent(ACTION_DB_UPDATED);
-				mContext.sendBroadcast(intent);
+				if (TYPE_DATA_GPS == updateType) {
+				    // GPS scanning completed, start scan iBeacon
+
+				} else if (TYPE_DATA_IBEACON == updateType) {
+                    // treat this type as end of scan procedure,
+    				// broadcast ACTION_SCANNING_COMPLETED
+                    Intent intent = new Intent(ACTION_DB_UPDATED);
+                    mContext.sendBroadcast(intent);
+                    GBUtils.releaseCpuWakeLock();
+				}
 			}
 				break;
 			}
@@ -289,8 +296,12 @@ public class GBScanService extends Service implements iBeaconScanManager.OniBeac
 		public void onReceive(Context context, Intent intent) {
 			log("onReceive : " + intent.getAction());
 			if (ACTION_SCANNING_START.equals(intent.getAction())) {
-				sendStartScaniBeaconMsg(); // should wait gps scanning completed?
-				// TODO: send start gps scan message (should wait ibeacon scanning completed?)
+			    // acquire wakelock while recv scanning start,
+			    // and release it after database updated.
+			    GBUtils.acquireCpuWakeLock(getBaseContext());
+
+			    // TODO: wait GPS scanning completed and then start scan iBeacon
+				sendStartScaniBeaconMsg(); 
 			}
 		}
     }

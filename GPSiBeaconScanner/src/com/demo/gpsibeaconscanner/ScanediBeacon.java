@@ -13,7 +13,7 @@ public class ScanediBeacon extends iBeaconData
 	public long lastUpdate= 0;
 	private Object mRssiObj = new Object();
 	LinkedList<Byte> mRssiRecv = new LinkedList<Byte>();
-	private int MAX_QUEUE_LENGTH = 20;
+	private int MAX_QUEUE_LENGTH = 100;
 	
 	/** ================================================ */
 	public static ScanediBeacon copyOf(iBeaconData iBeacon)

@@ -71,7 +71,9 @@ public class GBMainActivity extends Activity {
 		public void onActivityCreated(Bundle savedInstanceState) {
 			super.onActivityCreated(savedInstanceState);
 			setupViews();
-			checkBTEnabled();
+			if (checkBTEnabled()) {
+			    // BT on, check GPS
+			}
 		}
 
         @Override
@@ -81,6 +83,7 @@ public class GBMainActivity extends Activity {
                 case REQ_ENABLE_BT:
                     if(RESULT_OK == resultCode) {
                         log("REQ_ENABLE_BT - RESULT_OK");
+                        //check GPS
                     }
                     break;
                 case REQ_ENABLE_GPS:
@@ -89,12 +92,14 @@ public class GBMainActivity extends Activity {
             }
         }
 
-		private void checkBTEnabled() {
+		private boolean checkBTEnabled() {
 		    BluetoothAdapter mBLEAdapter= BluetoothAdapter.getDefaultAdapter();
 		    if(!mBLEAdapter.isEnabled()) {
 		        Intent intent= new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
 		        startActivityForResult(intent, REQ_ENABLE_BT);
+		        return false;
 		    }
+		    return true;
         }
 
         private void setupViews() {

@@ -14,16 +14,15 @@ public class GBCursorAdapter extends ResourceCursorAdapter {
 
     @Override
     public void bindView(View view, Context context, Cursor cursor) {
-        //TODO: use meaningful text id instead of text#
-        TextView type = (TextView) view.findViewById(R.id.data_text1);
+        TextView type = (TextView) view.findViewById(R.id.text_data_type);
         type.setText(cursor.getString(
                 cursor.getColumnIndexOrThrow(GBDatabaseHelper.COLUMN_TYPE)));
 
-        TextView data = (TextView) view.findViewById(R.id.data_text2);
+        TextView data = (TextView) view.findViewById(R.id.text_data);
         data.setText(cursor.getString(
                 cursor.getColumnIndexOrThrow(GBDatabaseHelper.COLUMN_DATA)));
         
-        TextView time = (TextView) view.findViewById(R.id.data_text3);
+        TextView time = (TextView) view.findViewById(R.id.text_timestamp);
         time.setText(cursor.getString(
                 cursor.getColumnIndexOrThrow(GBDatabaseHelper.COLUMN_TIMESTAMP)));
     }
