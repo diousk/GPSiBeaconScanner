@@ -2,6 +2,7 @@ package com.demo.gpsibeaconscanner;
 
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.HashMap;
@@ -24,6 +25,7 @@ import android.os.Handler;
 import android.os.IBinder;
 import android.os.Message;
 import android.util.Log;
+import android.widget.Toast;
 
 import com.THLight.USBeacon.App.Lib.iBeaconData;
 import com.THLight.USBeacon.App.Lib.iBeaconScanManager;
@@ -40,6 +42,8 @@ public class GBScanService extends Service implements iBeaconScanManager.OniBeac
 	private Boolean isInRegion = false;
     private LocationManager mLocationManager; 
     private MyLocationListener mLocationListener;
+	public double[] addressX = new double[2];
+	public double[] addressY = new double[2];
 	
 	// iBeacon component
 	private iBeaconScanManager miScaner	= null;
@@ -279,6 +283,7 @@ public class GBScanService extends Service implements iBeaconScanManager.OniBeac
 			{
 				// TODO: complete this
 				log("MSG_START_SCAN_GPS");
+				getAddress();
 				startGps();
 			}
 				break;
@@ -342,16 +347,40 @@ public class GBScanService extends Service implements iBeaconScanManager.OniBeac
 			{
 				log("MSG_SCAN_TIME_OUT"); 
 				stopGps();
+				// write database address 0 0
 			}
 				break;
 			case MSG_CHECK_REGION:
 			{
 				log("MSG_CHECK_REGION");
+				Bundle mBundle = new Bundle();
+				mBundle = msg.getData();
+				checkRegion(mBundle.getDouble("Lat"), mBundle.getDouble("Long"));
 				
 			}
 				break;
 			}
 			
+		}
+
+		private void checkRegion(double Lat, double Long) {
+			// TODO Auto-generated method stub
+			if(addressX[1] >= Lat && Lat >= addressX[0] && addressY[1] >= Long && Long >= addressY[0]) {
+				isInRegion = true;
+			} else {
+				isInRegion = false;
+			}
+		}
+		
+		private void getAddress() {
+			mGBiBeacon = (GBiBeacon) getApplication();
+		    
+			addressX[0] = mGBiBeacon.gpsx1; //use array to sort address
+			addressX[1] = mGBiBeacon.gpsx2;
+			addressY[0] = mGBiBeacon.gpsy1;
+			addressY[1] = mGBiBeacon.gpsy2;
+			Arrays.sort(addressX);
+			Arrays.sort(addressY);
 		}
     }
 
@@ -389,7 +418,7 @@ public class GBScanService extends Service implements iBeaconScanManager.OniBeac
                 am.set(AlarmManager.RTC_WAKEUP, calendar.getTimeInMillis(), sender); // API 19 setExact()
                 
 			    // TODO: wait GPS scanning completed and then start scan iBeacon
-				sendStartScaniBeaconMsg(); 
+				sendStartScaniBeaconMsg();   // check region to scan beacon
 				
 			} else if(ACTION_SCANNING_STOP.equals(intent.getAction())) {
                 Message m = new Message();
@@ -401,12 +430,11 @@ public class GBScanService extends Service implements iBeaconScanManager.OniBeac
                 intentStop.setClass(context, GBScanService.class);
                 PendingIntent sender = PendingIntent.getService(context, 0, intentStop, PendingIntent.FLAG_UPDATE_CURRENT);
                 am.cancel(sender);
+                
 			} else if(ACTION_FIX_LOCATION.equals(intent.getAction())) {
                 mLat = intent.getDoubleExtra("Lat", 0.0);
                 mLong = intent.getDoubleExtra("Long", 0.0);
                     
-                Log.d(TAG, "Lat: " + mLat + ", Long: " + mLong);
-                
                 Message mStop = new Message();
                 mStop.what = MSG_STOP_SCAN_GPS;
                 mHandler.sendMessage(mStop);
@@ -416,16 +444,16 @@ public class GBScanService extends Service implements iBeaconScanManager.OniBeac
                 mBundle.putString("Lat", String.valueOf(mLat));
                 mBundle.putString("Long", String.valueOf(mLong));
                 mCheckRegion.setData(mBundle);
-                mCheckRegion.what = 1;
+                mCheckRegion.what = MSG_CHECK_REGION;
                 mHandler.sendMessage(mCheckRegion);
+                
+                // write database address
                 
                 
             } else if("ACTION_ENTER_REGION".equals(intent.getAction())) {
             	log("ACTION_ENTER_REGION");
-                isInRegion = true;
             } else if ("ACTION_EXIT_REGION".equals(intent.getAction())) {
             	log("ACTION_EXIT_REGION");
-                isInRegion = false;
             }   
 		}
     }
@@ -448,6 +476,7 @@ public class GBScanService extends Service implements iBeaconScanManager.OniBeac
         @Override
         public void onProviderDisabled(String provider) {
             // TODO Auto-generated method stub
+        	Toast.makeText(mContext, "GPS turn off", Toast.LENGTH_SHORT).show();
         }
 
         @Override
