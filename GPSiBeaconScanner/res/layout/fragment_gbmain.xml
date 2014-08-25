@@ -9,7 +9,7 @@
     tools:context="com.demo.gpsibeaconscanner.GBMainActivity$PlaceholderFragment" >
 
     <ToggleButton
-        android:id="@+id/toggleButton1"
+        android:id="@+id/btn_scan"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_alignParentLeft="true"
@@ -18,11 +18,11 @@
         android:textOff="@string/string_start_scanning" />
 
     <Button
-        android:id="@+id/button1"
+        android:id="@+id/btn_update_result"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_alignLeft="@+id/toggleButton1"
-        android:layout_below="@+id/toggleButton1"
+        android:layout_alignLeft="@+id/btn_scan"
+        android:layout_below="@+id/btn_scan"
         android:layout_marginTop="21dp"
         android:text="@string/string_update_result" />
 
@@ -42,8 +42,8 @@
         android:id="@+id/btn_delete_db"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_alignBaseline="@+id/button1"
-        android:layout_alignBottom="@+id/button1"
+        android:layout_alignBaseline="@+id/btn_update_result"
+        android:layout_alignBottom="@+id/btn_update_result"
         android:layout_alignParentRight="true"
         android:text="@string/string_clear_database" />
 </RelativeLayout>

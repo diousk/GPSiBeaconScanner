@@ -8,4 +8,6 @@
 	<string name="string_start_scanning">Start scanning</string>
 	<string name="string_update_result">Update result</string>
 	<string name="string_clear_database">Clear database</string>
+    <string name="string_data">data : </string>
+    <string name="string_timestamp">timestamp : </string>
 </resources>

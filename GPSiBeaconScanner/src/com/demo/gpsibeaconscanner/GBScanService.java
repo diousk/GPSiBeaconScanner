@@ -77,6 +77,7 @@ public class GBScanService extends Service implements iBeaconScanManager.OniBeac
 
 	private void updateSettingPreferences() {
 		// TODO: get SharedPreferences
+	    //mEachScanTime, mEachScanInterval
 	}
 
 	private void setupiBeaconScanner() {
@@ -202,10 +203,17 @@ public class GBScanService extends Service implements iBeaconScanManager.OniBeac
 							new HashMap<String, String>();
 					dataValues.put(GBDatabaseHelper.COLUMN_TYPE, TYPE_STRING_IBEACON);
 					dataValues.put(GBDatabaseHelper.COLUMN_DATA, "" + beacon.beaconUuid);
-					
-					SimpleDateFormat sdf = new SimpleDateFormat("yyyy/MM/dd HH:mm:ss", Locale.getDefault());
+					dataValues.put(GBDatabaseHelper.COLUMN_EXTRA1,
+					        "major:" + beacon.major + " minor:" + beacon.minor);
+					dataValues.put(GBDatabaseHelper.COLUMN_EXTRA2,
+					        "rssi:" + beacon.getAverageRssi()
+					        + ", distance:" + beacon.calDistance());
+
+					SimpleDateFormat sdf = new SimpleDateFormat(
+					        "yyyy/MM/dd HH:mm:ss", Locale.getDefault());
 					Date resultdate = new Date(beacon.lastUpdate);
 					dataValues.put(GBDatabaseHelper.COLUMN_TIMESTAMP, sdf.format(resultdate));
+
 					dbHelper.insertData(dataValues);
 				}
 			}

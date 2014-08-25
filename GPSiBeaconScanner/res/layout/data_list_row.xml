@@ -33,7 +33,7 @@
 	        android:gravity="left|center_vertical"
 	        android:singleLine="true"
 	        android:paddingLeft="2dp"
-	        android:text="data : "
+	        android:text="@string/string_data"
 	    />
 	    
 	    <TextView
@@ -63,7 +63,7 @@
 	        android:gravity="left|center_vertical"
 	        android:singleLine="true"
 	        android:paddingLeft="2dp"
-	        android:text="timestamp : "
+	        android:text="@string/string_timestamp"
 	    />
 	    
 	    <TextView

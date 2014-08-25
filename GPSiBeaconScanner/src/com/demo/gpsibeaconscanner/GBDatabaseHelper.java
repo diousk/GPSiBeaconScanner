@@ -1,6 +1,5 @@
 package com.demo.gpsibeaconscanner;
 
-import java.util.ArrayList;
 import java.util.HashMap;
 
 import android.content.ContentValues;
@@ -21,7 +20,8 @@ public class GBDatabaseHelper extends SQLiteOpenHelper{
 	 public static final String COLUMN_TYPE = "type";
 	 public static final String COLUMN_TIMESTAMP = "timestamp";
 	 public static final String COLUMN_DATA = "data";
-	 public static final String COLUMN_EXTRA = "extra";
+	 public static final String COLUMN_EXTRA1 = "extra1";
+	 public static final String COLUMN_EXTRA2 = "extra2";
 	 private static GBDatabaseHelper helper;
 	 /** Create a helper object for the Events database */
 	 public GBDatabaseHelper(Context ctx) {
@@ -41,7 +41,9 @@ public class GBDatabaseHelper extends SQLiteOpenHelper{
 		        + BaseColumns._ID + " INTEGER PRIMARY KEY AUTOINCREMENT,"
 		        + COLUMN_TYPE + " TEXT,"
 		        + COLUMN_TIMESTAMP + " TEXT,"
-		        + COLUMN_DATA + " TEXT"
+		        + COLUMN_DATA + " TEXT,"
+		        + COLUMN_EXTRA1 + " TEXT,"
+		        + COLUMN_EXTRA2 + " TEXT"
 		        + ");");
 	}
 
@@ -66,8 +68,6 @@ public class GBDatabaseHelper extends SQLiteOpenHelper{
 	 * @return
 	 */
 	public Cursor getAllDBData() {
-		ArrayList<HashMap<String, String>> dataList =
-				new ArrayList<HashMap<String, String>>();
 		String selectQuery = "SELECT  * FROM " + TABLE_NAME;
 	    SQLiteDatabase database = this.getWritableDatabase();
 	    Cursor cursor = database.rawQuery(selectQuery, null);
