@@ -306,7 +306,7 @@ public class GBScanService extends Service implements iBeaconScanManager.OniBeac
         }
     }
 
-    private void updateDatabase(int type) {
+    private void updateDatabase(int type, Bundle bundle) {
         if (TYPE_DATA_IBEACON == type) {
             synchronized (mBeaconsObj) {
                 log("updateDatabase - TYPE_DATA_IBEACON " + miBeacons.size());
@@ -333,7 +333,17 @@ public class GBScanService extends Service implements iBeaconScanManager.OniBeac
                 }
             }
         } else if (TYPE_DATA_GPS == type) {
-            // TODO: else if gps data
+            GBDatabaseHelper dbHelper = GBDatabaseHelper.getInstance(getBaseContext());
+            HashMap<String, String> gpsValues = new HashMap<String, String>();
+            String latitude = String.valueOf(bundle.getDouble("latitude"));
+            String longitude = String.valueOf(bundle.getDouble("longitude"));
+
+            gpsValues.put(GBDatabaseHelper.COLUMN_TYPE, TYPE_STRING_GPS);
+            gpsValues.put(GBDatabaseHelper.COLUMN_DATA, "" + latitude + ", " + longitude);
+
+            SimpleDateFormat sdf = new SimpleDateFormat("yyyy/MM/dd HH:mm:ss", Locale.getDefault());
+            gpsValues.put(GBDatabaseHelper.COLUMN_TIMESTAMP, sdf.format(System.currentTimeMillis()));
+            dbHelper.insertData(gpsValues);
         }
     }
 
@@ -458,9 +468,10 @@ public class GBScanService extends Service implements iBeaconScanManager.OniBeac
             {
                 int updateType = msg.arg1;
                 log("MSG_UPDATE_DATABASE - type: " + updateType);
-                updateDatabase(updateType);
+                updateDatabase(updateType, msg.getData());
 
                 if (TYPE_DATA_GPS == updateType) {
+                    //updateDatabase(TYPE_DATA_GPS, msg.getData());
                     // GPS scanning completed, start scan iBeacon
                     sendStartScaniBeaconMsg();
                 } else if (TYPE_DATA_IBEACON == updateType) {
