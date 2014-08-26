@@ -40,7 +40,7 @@ public class GBScanService extends Service implements iBeaconScanManager.OniBeac
     private ScanHandler mHandler;
     private ScanReceiver mReceiver;
     private AlarmManager am;
-    private Boolean mIsInRegion = false;
+    private Boolean mIsGPSInRegion = false,mIsBTInRegion = false;
     private LocationManager mLocationManager;
     private MyLocationListener mLocationListener;
     public double[] addressX = new double[2];
@@ -100,9 +100,9 @@ public class GBScanService extends Service implements iBeaconScanManager.OniBeac
         setupiBeaconScanner();
         setupGps();
         updateSettingPreferences();
-
         setupScanAlarms(mContext);
-        //Should it start scanning when first time service starts?
+
+        // start scanning when first time service starts
         triggerScanProcedure();
 
         return super.onStartCommand(intent, flags, startId);
@@ -158,9 +158,10 @@ public class GBScanService extends Service implements iBeaconScanManager.OniBeac
     }
 
     private void triggerScanProcedure() {
+        // acquire wakelock to prevent from suspend
+        GBUtils.acquireCpuWakeLock(getBaseContext());
         // we scan GPS first then iBeacon
         sendStartScanGPSMsg();
-        //sendStartScaniBeaconMsg();
     }
 
     public void cancelScanAlarm(Context context) {
@@ -336,18 +337,35 @@ public class GBScanService extends Service implements iBeaconScanManager.OniBeac
         }
     }
 
-    private void updateRegion(double Lat, double Long) {
+    private void updateGPSRegion(double Lat, double Long) {
         //TODO:add specified ibeacon scanned condition
         if(addressX[1] >= Lat && Lat >= addressX[0]
                 && addressY[1] >= Long && Long >= addressY[0]) {
-            mIsInRegion = true;
+            mIsGPSInRegion = true;
         } else {
-            mIsInRegion = false;
+            mIsGPSInRegion = false;
         }
     }
 
+    private void updateBTRegion() {
+        mIsBTInRegion = false;
+        synchronized (mBeaconsObj) {
+            for (ScanediBeacon beacon : miBeacons) {
+                if (checkIfSpecifiediBeacons(beacon)) {
+                    mIsBTInRegion = true;
+                    break;
+                }
+            }
+        }
+    }
+
+    private boolean checkIfSpecifiediBeacons(ScanediBeacon beacon) {
+        //TODO: implement this
+        return true;
+    }
+
     private boolean isInRegion() {
-        return mIsInRegion;
+        return (mIsGPSInRegion || mIsBTInRegion);
     }
 
     private void getAddress() {
@@ -383,7 +401,8 @@ public class GBScanService extends Service implements iBeaconScanManager.OniBeac
             {
                 log("MSG_GPS_LOCATION_FIXED");
                 Bundle bundle = msg.getData();
-                updateRegion(bundle.getDouble("latitude"), bundle.getDouble("longitude"));
+                updateGPSRegion(bundle.getDouble("latitude"),
+                        bundle.getDouble("longitude"));
 
                 Message msgStop = new Message();
                 msgStop.what = MSG_STOP_SCAN_GPS;
@@ -395,9 +414,13 @@ public class GBScanService extends Service implements iBeaconScanManager.OniBeac
             {
                 log("MSG_STOP_SCAN_GPS");
                 stopGps();
-                // TODO: update database by MSG_UPDATE_DATABASE
-                Bundle bundle = msg.getData();
 
+                // TODO: update database by MSG_UPDATE_DATABASE
+                Message msgUpdateDB = new Message();
+                msgUpdateDB.what = MSG_UPDATE_DATABASE;
+                msgUpdateDB.arg1 = TYPE_DATA_GPS;
+                msgUpdateDB.setData(msg.getData());
+                mHandler.sendMessage(msgUpdateDB);
             }
                 break;
             case MSG_START_SCAN_IBEACON :
@@ -433,9 +456,8 @@ public class GBScanService extends Service implements iBeaconScanManager.OniBeac
                 break;
             case MSG_UPDATE_DATABASE :
             {
-                log("MSG_UPDATE_DATABASE");
-                // TODO: implement update database
                 int updateType = msg.arg1;
+                log("MSG_UPDATE_DATABASE - type: " + updateType);
                 updateDatabase(updateType);
 
                 if (TYPE_DATA_GPS == updateType) {
@@ -480,8 +502,6 @@ public class GBScanService extends Service implements iBeaconScanManager.OniBeac
         public void onReceive(Context context, Intent intent) {
             log("onReceive : " + intent.getAction());
             if (ACTION_SCANNING_START.equals(intent.getAction())) {
-                //acquire wakelock to prevent from suspend
-                GBUtils.acquireCpuWakeLock(getBaseContext());
                 triggerScanProcedure();
 
             } else if(ACTION_SCANNING_STOP.equals(intent.getAction())) {
