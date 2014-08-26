@@ -15,7 +15,7 @@ import android.provider.BaseColumns;
 // TODO: complete this class
 public class GBDatabaseHelper extends SQLiteOpenHelper{
 	 private static final String DATABASE_NAME = "gbdatabase.db";
-	 private static final int DATABASE_VERSION = 1;
+	 private static final int DATABASE_VERSION = 2;
 	 private static final String TABLE_NAME = "gbdata";
 	 public static final String COLUMN_TYPE = "type";
 	 public static final String COLUMN_TIMESTAMP = "timestamp";
@@ -23,7 +23,9 @@ public class GBDatabaseHelper extends SQLiteOpenHelper{
 	 public static final String COLUMN_EXTRA1 = "extra1";
 	 public static final String COLUMN_EXTRA2 = "extra2";
 	 public static final String COLUMN_SYNC_STATUS = "syncstatus";
+	 public static final String COLUMN_DEVICE_ID = "deviceid";
 	 private static GBDatabaseHelper helper;
+	 private static String mDeviceId = "";
 	 /** Create a helper object for the Events database */
 	 public GBDatabaseHelper(Context ctx) {
 		 super(ctx, DATABASE_NAME, null, DATABASE_VERSION);
@@ -32,6 +34,7 @@ public class GBDatabaseHelper extends SQLiteOpenHelper{
 	 public static synchronized GBDatabaseHelper getInstance(Context context) {
 		 if(helper == null) {
 			 helper = new GBDatabaseHelper(context);
+			 mDeviceId = Installation.id(context);
 		 }
 		 return helper;
 	 }
@@ -45,7 +48,8 @@ public class GBDatabaseHelper extends SQLiteOpenHelper{
 		        + COLUMN_DATA + " TEXT,"
 		        + COLUMN_EXTRA1 + " TEXT,"
 		        + COLUMN_EXTRA2 + " TEXT,"
-		        + COLUMN_SYNC_STATUS + "TEXT"
+		        + COLUMN_DEVICE_ID + " TEXT,"
+		        + COLUMN_SYNC_STATUS + " TEXT"
 		        + ");");
 	}
 
@@ -61,7 +65,21 @@ public class GBDatabaseHelper extends SQLiteOpenHelper{
 		values.put(COLUMN_TYPE, dataValues.get(COLUMN_TYPE));
 		values.put(COLUMN_TIMESTAMP, dataValues.get(COLUMN_TIMESTAMP));
 		values.put(COLUMN_DATA, dataValues.get(COLUMN_DATA));
-		//TODO : fill all column
+
+		if (dataValues.get(COLUMN_EXTRA1) == null) {
+			values.putNull(COLUMN_EXTRA1);
+		} else {
+			values.put(COLUMN_EXTRA1, dataValues.get(COLUMN_EXTRA1));
+		}
+
+		if (dataValues.get(COLUMN_EXTRA2) == null) {
+			values.putNull(COLUMN_EXTRA2);
+		} else {
+			values.put(COLUMN_EXTRA2, dataValues.get(COLUMN_EXTRA2));
+		}
+
+		values.put(COLUMN_DEVICE_ID, mDeviceId);
+		values.put(COLUMN_SYNC_STATUS, "no");
 		database.insertOrThrow(TABLE_NAME, null, values);
 		database.close();
 	}
