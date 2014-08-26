@@ -29,4 +29,13 @@ public class GBUtils {
             Log.d(TAG, "cpu wake lock already gone.");
         }
     }
+    // TODO: set configurable from preference fragment
+    public static final String[] MY_IBEACONS_UUID= {"", ""};
+    public static final String[] MY_IBEACONS_MAJOR= {"", ""};
+    public static final String[] MY_IBEACONS_MINOR= {"", ""};
+    public static boolean isMyiBeacons(String uuid, String major, String minor) {
+    	boolean isMatched = false;
+    	// TODO: implement this
+    	return isMatched;
+    }
 }

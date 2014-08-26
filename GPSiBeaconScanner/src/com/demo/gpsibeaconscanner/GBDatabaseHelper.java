@@ -22,6 +22,7 @@ public class GBDatabaseHelper extends SQLiteOpenHelper{
 	 public static final String COLUMN_DATA = "data";
 	 public static final String COLUMN_EXTRA1 = "extra1";
 	 public static final String COLUMN_EXTRA2 = "extra2";
+	 public static final String COLUMN_SYNC_STATUS = "syncstatus";
 	 private static GBDatabaseHelper helper;
 	 /** Create a helper object for the Events database */
 	 public GBDatabaseHelper(Context ctx) {
@@ -43,7 +44,8 @@ public class GBDatabaseHelper extends SQLiteOpenHelper{
 		        + COLUMN_TIMESTAMP + " TEXT,"
 		        + COLUMN_DATA + " TEXT,"
 		        + COLUMN_EXTRA1 + " TEXT,"
-		        + COLUMN_EXTRA2 + " TEXT"
+		        + COLUMN_EXTRA2 + " TEXT,"
+		        + COLUMN_SYNC_STATUS + "TEXT"
 		        + ");");
 	}
 
@@ -59,6 +61,8 @@ public class GBDatabaseHelper extends SQLiteOpenHelper{
 		values.put(COLUMN_TYPE, dataValues.get(COLUMN_TYPE));
 		values.put(COLUMN_TIMESTAMP, dataValues.get(COLUMN_TIMESTAMP));
 		values.put(COLUMN_DATA, dataValues.get(COLUMN_DATA));
+		values.put(COLUMN_SYNC_STATUS, "no");
+		//TODO : fill all column
 		database.insertOrThrow(TABLE_NAME, null, values);
 		database.close();
 	}
@@ -74,9 +78,19 @@ public class GBDatabaseHelper extends SQLiteOpenHelper{
 	    return cursor;
 	}
 
+	public Cursor getNonSyncDBData() {
+		//TODO: implement this.
+		String selectQuery = "";
+	    SQLiteDatabase database = this.getWritableDatabase();
+	    Cursor cursor = database.rawQuery(selectQuery, null);
+	    return cursor;
+	}
+
 	public void deleteTable() {
 		SQLiteDatabase database = this.getWritableDatabase();
 		database.delete(TABLE_NAME, null, null);
+		database.close();
 	}
 
+	// TODO: implement interfaces to MySQL
 }

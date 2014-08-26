@@ -137,10 +137,11 @@ public class GBMainActivity extends Activity {
         private void setupViews() {
 		    mContext = this.getActivity();
             // show db data list if exists
-            GBDatabaseHelper sqLiteOpenHelper = new GBDatabaseHelper(this.getActivity());
+            GBDatabaseHelper dbHelper =
+                    GBDatabaseHelper.getInstance(this.getActivity().getBaseContext());
             mListView = (ListView)(this.getView().findViewById(R.id.data_list));
             mListAdapter = new GBCursorAdapter(
-                    this.getActivity(), R.layout.data_list_row, sqLiteOpenHelper.getAllDBData(),0);
+                    this.getActivity(), R.layout.data_list_row, dbHelper.getAllDBData(),0);
             mListView.setAdapter(mListAdapter);
 
             // buttons
@@ -181,7 +182,7 @@ public class GBMainActivity extends Activity {
                 
                 @Override
                 public void onClick(View v) {
-                    mListAdapter.swapCursor(
+                    mListAdapter.changeCursor(
                             GBDatabaseHelper.getInstance(getActivity()).getAllDBData());
                     mListAdapter.notifyDataSetChanged();
                 }

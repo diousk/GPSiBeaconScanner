@@ -46,24 +46,17 @@
     
     
     
-    <PreferenceCategory android:title="Beacon Settings" >
+    <PreferenceCategory android:title="iBeacon Settings" >
         <EditTextPreference
-            android:name="EditText"
-            android:defaultValue="[Enter a string here]"
-            android:key="editTextPref"
-            android:summary="Enter a string"
-            android:title="Edit Text" />
-
-        <PreferenceScreen
-            android:key="secondPrefScreenPref"
-            android:summary="Click here to go to the second Preference Screen"
-            android:title="Second Preference Screen" >
-            <EditTextPreference
-                android:name="EditText"
-                android:key="secondEditTextPref"
-                android:summary="Enter a string"
-                android:title="Edit Text (second Screen)" />
-        </PreferenceScreen>
+            android:defaultValue="60"
+            android:key="iBeaconScanningTracking_pref"
+            android:summary="Default value = 60 seconds"
+            android:title="iBeacon tracking time per scanning" />
+        <EditTextPreference
+            android:defaultValue="30"
+            android:key="iBeaconInvalidTimeout_pref"
+            android:summary="Default value = 30 seconds"
+            android:title="Timeout for disposing scanned iBeacon" />
     </PreferenceCategory>
 
 </PreferenceScreen>
