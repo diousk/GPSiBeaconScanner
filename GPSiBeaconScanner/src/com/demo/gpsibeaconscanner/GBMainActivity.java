@@ -150,15 +150,19 @@ public class GBMainActivity extends Activity {
                     if (isChecked) {
                         Intent i = new Intent(mContext, GBScanService.class);
                         mContext.startService(i);
-                        
-                        Intent intentStartScan = new Intent("scanning.start");
-                        mContext.sendBroadcast(intentStartScan);
+
+                        // this intent should be broadcasted by alarm manager
+                        /*Intent intentStartScan = new Intent("scanning.start");
+                        mContext.sendBroadcast(intentStartScan);*/
                     } else {
                         Intent i = new Intent(mContext, GBScanService.class);
                         mContext.stopService(i);
-                        
+
+                        // this intent should be broadcasted by alarm manager
+                        /*
                         Intent intentStartScan = new Intent("scanning.stop");
                         mContext.sendBroadcast(intentStartScan);
+                        */
                     }
                 }
             });

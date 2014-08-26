@@ -17,6 +17,7 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.SharedPreferences;
 import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
@@ -24,6 +25,7 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Message;
+import android.preference.PreferenceManager;
 import android.util.Log;
 import android.widget.Toast;
 
@@ -37,9 +39,8 @@ public class GBScanService extends Service implements iBeaconScanManager.OniBeac
 	private static boolean isReceiverRegistered = false;
 	private ScanHandler mHandler;
 	private ScanReceiver mReceiver;
-	private GBiBeacon mGBiBeacon;
 	private AlarmManager am;
-	private Boolean isInRegion = false;
+	private Boolean mIsInRegion = false;
     private LocationManager mLocationManager; 
     private MyLocationListener mLocationListener;
 	public double[] addressX = new double[2];
@@ -54,13 +55,17 @@ public class GBScanService extends Service implements iBeaconScanManager.OniBeac
 	private int mEachScanTime = 5000; //default 5s
 	private int mBeaconTimeout = 10000; //default 10s, means invalid if too old
 	
+	// GPS component
+	public int gpsPeriodOutter, gpstracking, gpsPeriodIntter;
+	public double gpsLocX1, gpsLocY1, gpsLocX2, gpsLocY2;
+	
 	private final static String ACTION_SCANNING_START = "scanning.start"; // should be trigger by alarm manager
 	private final static String ACTION_SCANNING_STOP = "scanning.stop"; // should be trigger by alarm manager
-	private final static String ACTION_FIX_LOCATION = "getfix.gps.location";
+	//private final static String ACTION_FIX_LOCATION = "getfix.gps.location";
 	private final static String ACTION_ENTER_REGION = "enter.setting.region";
 	private final static String ACTION_EXIT_REGION = "exit.setting.region";
-	
 	private final static String ACTION_DB_UPDATED = "db.updated";
+
 	private final static int MSG_START_SCAN_GPS = 2001;
 	private final static int MSG_START_SCAN_IBEACON = 2002;
 	private final static int MSG_STOP_SCAN_GPS = 2003;
@@ -69,6 +74,7 @@ public class GBScanService extends Service implements iBeaconScanManager.OniBeac
 	private final static int MSG_UPDATE_DATABASE = 2006;
 	private final static int MSG_SCAN_TIME_OUT = 2007;
 	private final static int MSG_CHECK_REGION = 2008;
+	private final static int MSG_GPS_LOCATION_FIXED = 2009;
 
 	private final static int TYPE_DATA_IBEACON = 101;
 	private final static int TYPE_DATA_GPS = 102;
@@ -93,71 +99,26 @@ public class GBScanService extends Service implements iBeaconScanManager.OniBeac
 		setupHandler();
 		setupiBeaconScanner();
 		updateSettingPreferences();
-		
-        String data = intent.getStringExtra("mode");
+
+		setupScanAlarms(mContext);
+		//Should it start scanning when first time service starts?
+		triggerScanProcedure();
+
+/*        String data = intent.getStringExtra("mode");
         Log.d(TAG, "data = " + data);
         
         if(data != null && data.equals("intentNextStart")) {
             Message mNextStart = new Message();
             mNextStart.what = MSG_START_SCAN_GPS;
             mHandler.sendMessage(mNextStart);
-        }
+        }*/
 
-		//Should it start scanning when first time service starts?
-		sendStartScaniBeaconMsg();
+		
+
 		return super.onStartCommand(intent, flags, startId);
 	}
-	
-    public void startGps(){
-        Log.d(TAG, "startGps");
-        mGBiBeacon = (GBiBeacon) getApplication();
-        
-        mLocationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0, 0, mLocationListener); // start gps tracking
-        //mLocationManager.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 0, 0, mLocationListener);
-        GBUtils.acquireCpuWakeLock(getBaseContext());
-    }
 
-    public void stopGps() {
-        Log.d(TAG, "stopGps");
-        mLocationManager.removeUpdates(mLocationListener);
-        isInRegion = false;
-        GBUtils.releaseCpuWakeLock();
-    }
-
-	private void updateSettingPreferences() {
-		// TODO: get SharedPreferences
-	    //mEachScanTime, mEachScanInterval
-	}
-
-	private void setupiBeaconScanner() {
-		miScaner = new iBeaconScanManager(this.getBaseContext(), this);		
-	}
-
-	private void setupHandler() {
-		mHandler = new ScanHandler();
-	}
-
-	private void setupReceiver() {
-		if (!isReceiverRegistered) {
-			mReceiver = new ScanReceiver();
-			IntentFilter filter = new IntentFilter();
-			filter.addAction(ACTION_SCANNING_START);
-			filter.addAction(ACTION_SCANNING_STOP);
-			filter.addAction(ACTION_FIX_LOCATION);
-			filter.addAction(ACTION_ENTER_REGION);
-			filter.addAction(ACTION_EXIT_REGION);
-			this.registerReceiver(mReceiver, filter);
-			isReceiverRegistered = true;
-		}
-	}
-	
-	public void sendStartScaniBeaconMsg(){
-		Message msg = mHandler.obtainMessage(
-				MSG_START_SCAN_IBEACON, mEachScanTime, mEachScanInterval);
-		msg.sendToTarget();
-	}
-
-	@Override
+    @Override
 	public void onDestroy() {
 		stopForeground(true);
 
@@ -172,11 +133,116 @@ public class GBScanService extends Service implements iBeaconScanManager.OniBeac
 		}
 		GBUtils.releaseCpuWakeLock();
 	}
-	
+
 	@Override
 	public void onScaned(iBeaconData iBeacon) {
 	    addOrUpdateiBeacon(iBeacon);
 	}
+
+	private void setupScanAlarms(Context context) {
+        Calendar calendar = Calendar.getInstance();
+        calendar.setTimeInMillis(System.currentTimeMillis());
+
+        if (isInRegion()) {
+            calendar.add(Calendar.MINUTE, gpsPeriodIntter);
+        } else {
+            calendar.add(Calendar.MINUTE, gpsPeriodOutter);
+        }
+        log("setupScanAlarms - isInRegion: " + isInRegion()
+                + ", gpsPeriodIntter:" + gpsPeriodIntter
+                + ", gpsPeriodOutter:" + gpsPeriodOutter);
+
+        am = (AlarmManager) getSystemService(ALARM_SERVICE);
+        Intent i = new Intent(ACTION_SCANNING_START);
+        PendingIntent sender = PendingIntent.getBroadcast(
+                context, 0, i, PendingIntent.FLAG_UPDATE_CURRENT);
+        am.set(AlarmManager.RTC_WAKEUP, calendar.getTimeInMillis(), sender); // API 19 setExact()
+    }
+
+    private void triggerScanProcedure() {
+        // we scan GPS first then iBeacon
+        sendStartScanGPSMsg();
+        //sendStartScaniBeaconMsg();
+    }
+
+    public void cancelScanAlarm(Context context) {
+        log("cancelScanAlarm");
+        Intent intent = new Intent(ACTION_SCANNING_START);
+        PendingIntent sender = PendingIntent.getBroadcast(context, 0, intent, 0);
+        AlarmManager alarmManager = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
+        alarmManager.cancel(sender);
+    }
+
+    public void startGps(){
+        log("startGps");
+        mLocationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0, 0, mLocationListener); // start gps tracking
+        //mLocationManager.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 0, 0, mLocationListener);
+    }
+
+    public void stopGps() {
+        log("stopGps");
+        mLocationManager.removeUpdates(mLocationListener);
+    }
+
+    private void updateSettingPreferences() {
+        //mEachScanTime, mEachScanInterval not set yet
+        PreferenceManager.setDefaultValues(this, R.xml.preferences, true);
+        SharedPreferences mySharedPreferences;
+        mySharedPreferences = PreferenceManager.getDefaultSharedPreferences(this);
+        gpstracking = Integer.valueOf(mySharedPreferences.getString("gpstracking_pref", "0"));
+        gpsPeriodOutter = Integer.valueOf(mySharedPreferences.getString("gpsPeriodOutter_pref", "0"));
+        gpsPeriodIntter = Integer.valueOf(mySharedPreferences.getString("gpsPeriodIntter_pref", "0"));
+
+        gpsLocX1 = Double.valueOf(mySharedPreferences.getString("gpsx1_pref", "0.0"));
+        gpsLocY1 = Double.valueOf(mySharedPreferences.getString("gpsy1_pref", "0.0"));
+        gpsLocX2 = Double.valueOf(mySharedPreferences.getString("gpsx2_pref", "0.0"));
+        gpsLocY2 = Double.valueOf(mySharedPreferences.getString("gpsy2_pref", "0.0"));
+    }
+
+    private void setupiBeaconScanner() {
+        miScaner = new iBeaconScanManager(this.getBaseContext(), this);     
+    }
+
+    private void setupHandler() {
+        mHandler = new ScanHandler();
+    }
+
+    private void setupReceiver() {
+        if (!isReceiverRegistered) {
+            mReceiver = new ScanReceiver();
+            IntentFilter filter = new IntentFilter();
+            filter.addAction(ACTION_SCANNING_START);
+            filter.addAction(ACTION_SCANNING_STOP);
+            filter.addAction(ACTION_ENTER_REGION);
+            filter.addAction(ACTION_EXIT_REGION);
+            this.registerReceiver(mReceiver, filter);
+            isReceiverRegistered = true;
+        }
+    }
+    
+    public void sendStartScaniBeaconMsg(){
+        log("sendStartScaniBeaconMsg");
+        Message msg = mHandler.obtainMessage(
+                MSG_START_SCAN_IBEACON, mEachScanTime, mEachScanInterval);
+        msg.sendToTarget();
+    }
+
+    public void sendStartScanGPSMsg(){
+        log("sendStartScanGPSMsg");
+        Message msg = mHandler.obtainMessage(MSG_START_SCAN_GPS);
+        msg.sendToTarget();
+    }
+
+    public void sendLocationFixedMsg(double latitude, double longitude) {
+        mHandler.removeMessages(MSG_SCAN_TIME_OUT);
+
+        Bundle bundle = new Bundle();
+        bundle.putDouble("latitude", latitude);
+        bundle.putDouble("longitude", longitude);
+        Message msg = mHandler.obtainMessage(MSG_GPS_LOCATION_FIXED);
+        msg.setData(bundle);
+        msg.sendToTarget();
+    }
 
     /**
      * Show a notification while this service is running.
@@ -185,8 +251,8 @@ public class GBScanService extends Service implements iBeaconScanManager.OniBeac
         CharSequence text = getText(R.string.local_service_started);
 
         // The PendingIntent to launch our activity if the user selects this notification
-/*        PendingIntent contentIntent = PendingIntent.getActivity(this, 0,
-                new Intent(this, LocalServiceActivities.Controller.class), 0);*/
+        PendingIntent contentIntent = PendingIntent.getActivity(this, 0,
+                new Intent(this, GBMainActivity.class), 0);
 
         Notification notification = new Notification.Builder(this.getBaseContext())
         	     .setTicker(text)
@@ -272,6 +338,29 @@ public class GBScanService extends Service implements iBeaconScanManager.OniBeac
 		}
 	}
 
+    private void updateRegion(double Lat, double Long) {
+        //TODO:add specified ibeacon scanned condition
+        if(addressX[1] >= Lat && Lat >= addressX[0]
+                && addressY[1] >= Long && Long >= addressY[0]) {
+            mIsInRegion = true;
+        } else {
+            mIsInRegion = false;
+        }
+    }
+
+    private boolean isInRegion() {
+        return mIsInRegion;
+    }
+
+    private void getAddress() {
+        addressX[0] = gpsLocX1; //use array to sort address
+        addressX[1] = gpsLocX2;
+        addressY[0] = gpsLocY1;
+        addressY[1] = gpsLocY2;
+        Arrays.sort(addressX);
+        Arrays.sort(addressY);
+    }
+
     private class ScanHandler extends Handler {
 
 		@Override
@@ -285,29 +374,47 @@ public class GBScanService extends Service implements iBeaconScanManager.OniBeac
 				log("MSG_START_SCAN_GPS");
 				getAddress();
 				startGps();
+				
+				// set timeout to stop GPS scanning
+                Message msgStartTimeOut = new Message();
+                msgStartTimeOut.what = MSG_SCAN_TIME_OUT;
+                mHandler.sendMessageDelayed(msgStartTimeOut, gpstracking * 60 * 1000);
 			}
 				break;
-			case MSG_START_SCAN_IBEACON :
+			case MSG_GPS_LOCATION_FIXED:
 			{
-				log("MSG_START_SCAN_IBEACON");
-				synchronized (mBeaconsObj) {
-				    miBeacons.clear();
-				}
+			    log("MSG_GPS_LOCATION_FIXED");
+			    Bundle bundle = msg.getData();
+			    updateRegion(bundle.getDouble("latitude"), bundle.getDouble("longitude"));
 
-				int timeForScaning = msg.arg1;
-				miScaner.startScaniBeacon(timeForScaning); //asynchronous
-				this.sendMessageDelayed(
-						this.obtainMessage(MSG_STOP_SCAN_IBEACON),
-						timeForScaning + 1000);
+                Message msgStop = new Message();
+                msgStop.what = MSG_STOP_SCAN_GPS;
+                msgStop.setData(bundle);
+                mHandler.sendMessage(msgStop);
 			}
-				break;
+			    break;
 			case MSG_STOP_SCAN_GPS :
 			{
-                // TODO: complete this
 				log("MSG_STOP_SCAN_GPS");
 				stopGps();
+                // TODO: update database by MSG_UPDATE_DATABASE
+				Bundle bundle = msg.getData();
 			}
 				break;
+            case MSG_START_SCAN_IBEACON :
+            {
+                log("MSG_START_SCAN_IBEACON");
+                synchronized (mBeaconsObj) {
+                    miBeacons.clear();
+                }
+
+                int timeForScaning = msg.arg1;
+                miScaner.startScaniBeacon(timeForScaning); //asynchronous
+                this.sendMessageDelayed(
+                        this.obtainMessage(MSG_STOP_SCAN_IBEACON),
+                        timeForScaning + 1000);
+            }
+                break;
 			case MSG_STOP_SCAN_IBEACON :
 			{
 				log("MSG_STOP_SCAN_IBEACON");
@@ -322,6 +429,7 @@ public class GBScanService extends Service implements iBeaconScanManager.OniBeac
 			case MSG_STOP_ALL_SCAN :
 			{
 				log("MSG_STOP_ALL_SCAN");
+				//TODO: do something?
 			}
 				break;
 			case MSG_UPDATE_DATABASE :
@@ -333,7 +441,7 @@ public class GBScanService extends Service implements iBeaconScanManager.OniBeac
 
 				if (TYPE_DATA_GPS == updateType) {
 				    // GPS scanning completed, start scan iBeacon
-
+				    sendStartScaniBeaconMsg();
 				} else if (TYPE_DATA_IBEACON == updateType) {
                     // treat this type as end of scan procedure,
     				// broadcast ACTION_SCANNING_COMPLETED
@@ -345,111 +453,51 @@ public class GBScanService extends Service implements iBeaconScanManager.OniBeac
 				break;
 			case MSG_SCAN_TIME_OUT :
 			{
-				log("MSG_SCAN_TIME_OUT"); 
-				stopGps();
-				// write database address 0 0
+				log("MSG_SCAN_TIME_OUT");
+				// fake address 0 0
+				Bundle bundle = new Bundle();
+		        bundle.putDouble("latitude", 0.0);
+		        bundle.putDouble("longitude", 0.0);
+
+                Message msgStop = new Message();
+                msgStop.what = MSG_STOP_SCAN_GPS;
+                msgStop.setData(bundle);
+                mHandler.sendMessage(msgStop);
 			}
 				break;
 			case MSG_CHECK_REGION:
 			{
+			    // TODO: remove this
 				log("MSG_CHECK_REGION");
-				Bundle mBundle = new Bundle();
-				mBundle = msg.getData();
-				checkRegion(mBundle.getDouble("Lat"), mBundle.getDouble("Long"));
-				
 			}
 				break;
 			}
 			
 		}
-
-		private void checkRegion(double Lat, double Long) {
-			// TODO Auto-generated method stub
-			if(addressX[1] >= Lat && Lat >= addressX[0] && addressY[1] >= Long && Long >= addressY[0]) {
-				isInRegion = true;
-			} else {
-				isInRegion = false;
-			}
-		}
-		
-		private void getAddress() {
-			mGBiBeacon = (GBiBeacon) getApplication();
-		    
-			addressX[0] = mGBiBeacon.gpsx1; //use array to sort address
-			addressX[1] = mGBiBeacon.gpsx2;
-			addressY[0] = mGBiBeacon.gpsy1;
-			addressY[1] = mGBiBeacon.gpsy2;
-			Arrays.sort(addressX);
-			Arrays.sort(addressY);
-		}
     }
 
     private class ScanReceiver extends BroadcastReceiver {
-    	private double mLat, mLong, mAcc, mBear, mSpeed, mTime;
-    	
+
 		@Override
 		public void onReceive(Context context, Intent intent) {
 			log("onReceive : " + intent.getAction());
-			mGBiBeacon = (GBiBeacon) getApplication();
 			if (ACTION_SCANNING_START.equals(intent.getAction())) {
-				
-                Message mStart = new Message();
-                mStart.what = MSG_START_SCAN_GPS;
-                mHandler.sendMessage(mStart);
-                    
-                Message mStartTimeOut = new Message();
-                mStartTimeOut.what = MSG_SCAN_TIME_OUT;
-                mHandler.sendMessageDelayed(mStartTimeOut, mGBiBeacon.gpstracking * 60 * 1000);
-                    
-                Calendar calendar = Calendar.getInstance();
-                calendar.setTimeInMillis(System.currentTimeMillis());
-                    
-                if (isInRegion) {
-                    calendar.add(Calendar.MINUTE, mGBiBeacon.gpsPeriodIntter);
-                } else {
-                    calendar.add(Calendar.MINUTE, mGBiBeacon.gpsPeriodOutter);
-                }
-                    
-                am = (AlarmManager) getSystemService(ALARM_SERVICE);
-                Intent intentNextStart = new Intent();
-                intentNextStart.putExtra("mode", "intentNextStart");
-                intentNextStart.setClass(context, GBScanService.class);
-                PendingIntent sender = PendingIntent.getService(context, 0, intentNextStart, PendingIntent.FLAG_UPDATE_CURRENT);
-                am.set(AlarmManager.RTC_WAKEUP, calendar.getTimeInMillis(), sender); // API 19 setExact()
-                
-			    // TODO: wait GPS scanning completed and then start scan iBeacon
-				sendStartScaniBeaconMsg();   // check region to scan beacon
+			    //acquire wakelock to prevent from suspend
+			    GBUtils.acquireCpuWakeLock(getBaseContext());
+			    triggerScanProcedure();
 				
 			} else if(ACTION_SCANNING_STOP.equals(intent.getAction())) {
-                Message m = new Message();
-                m.what = MSG_STOP_SCAN_GPS;
-                mHandler.sendMessage(m);
-                    
-                Intent intentStop = new Intent();
+			    // TODO: who should broadcast this intent?
+                Message msg = mHandler.obtainMessage(MSG_STOP_ALL_SCAN);
+                msg.sendToTarget();
+                cancelScanAlarm(mContext);
+
+/*                Intent intentStop = new Intent();
                 intentStop.putExtra("mode", "intentStop");
                 intentStop.setClass(context, GBScanService.class);
                 PendingIntent sender = PendingIntent.getService(context, 0, intentStop, PendingIntent.FLAG_UPDATE_CURRENT);
-                am.cancel(sender);
-                
-			} else if(ACTION_FIX_LOCATION.equals(intent.getAction())) {
-                mLat = intent.getDoubleExtra("Lat", 0.0);
-                mLong = intent.getDoubleExtra("Long", 0.0);
-                    
-                Message mStop = new Message();
-                mStop.what = MSG_STOP_SCAN_GPS;
-                mHandler.sendMessage(mStop);
-                
-                Message mCheckRegion = new Message();
-                Bundle mBundle = new Bundle();
-                mBundle.putString("Lat", String.valueOf(mLat));
-                mBundle.putString("Long", String.valueOf(mLong));
-                mCheckRegion.setData(mBundle);
-                mCheckRegion.what = MSG_CHECK_REGION;
-                mHandler.sendMessage(mCheckRegion);
-                
-                // write database address
-                
-                
+                am.cancel(sender);*/
+
             } else if("ACTION_ENTER_REGION".equals(intent.getAction())) {
             	log("ACTION_ENTER_REGION");
             } else if ("ACTION_EXIT_REGION".equals(intent.getAction())) {
@@ -465,29 +513,21 @@ public class GBScanService extends Service implements iBeaconScanManager.OniBeac
         	log("onLocationChanged: Lat = " + location.getLatitude() + " , Long = " + location.getLongitude());
         	log("Got location fixed, stop gps");
             stopGps();
-             
-            Intent intentFixLocation = new Intent();
-            intentFixLocation.setAction("getfix.gps.location");
-            intentFixLocation.putExtra("Lat", location.getLatitude());
-            intentFixLocation.putExtra("Long", location.getLongitude());
-            sendBroadcast(intentFixLocation);
+            sendLocationFixedMsg(
+                    location.getLatitude(), location.getLongitude());
         }
 
         @Override
         public void onProviderDisabled(String provider) {
-            // TODO Auto-generated method stub
         	Toast.makeText(mContext, "GPS turn off", Toast.LENGTH_SHORT).show();
         }
 
         @Override
         public void onProviderEnabled(String provider) {
-            // TODO Auto-generated method stub
         }
 
 		@Override
 		public void onStatusChanged(String provider, int status, Bundle extras) {
-			// TODO Auto-generated method stub
-			
 		}
     } 
 
