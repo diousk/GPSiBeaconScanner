@@ -61,7 +61,6 @@ public class GBDatabaseHelper extends SQLiteOpenHelper{
 		values.put(COLUMN_TYPE, dataValues.get(COLUMN_TYPE));
 		values.put(COLUMN_TIMESTAMP, dataValues.get(COLUMN_TIMESTAMP));
 		values.put(COLUMN_DATA, dataValues.get(COLUMN_DATA));
-		values.put(COLUMN_SYNC_STATUS, "no");
 		//TODO : fill all column
 		database.insertOrThrow(TABLE_NAME, null, values);
 		database.close();
