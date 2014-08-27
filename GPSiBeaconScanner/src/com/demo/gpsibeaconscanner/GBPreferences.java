@@ -3,8 +3,7 @@ package com.demo.gpsibeaconscanner;
 import android.app.ActionBar;
 import android.app.Activity;
 import android.os.Bundle;
-import android.preference.EditTextPreference;
-import android.preference.PreferenceFragment;
+import android.view.MenuItem;
 
 public class GBPreferences extends Activity {
 	 @Override
@@ -17,4 +16,16 @@ public class GBPreferences extends Activity {
 	  ActionBar actionBar = getActionBar();
 	  actionBar.setDisplayHomeAsUpEnabled(true);
 	 }
+
+	 @Override
+     public boolean onOptionsItemSelected(MenuItem item) {
+             switch (item.getItemId()) {
+             case android.R.id.home:
+                     finish();
+                     return true;
+             default:
+                     return super.onOptionsItemSelected(item);
+             }
+     }
+
 }
