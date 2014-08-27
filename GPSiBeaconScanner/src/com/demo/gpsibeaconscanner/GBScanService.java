@@ -41,6 +41,7 @@ public class GBScanService extends Service implements iBeaconScanManager.OniBeac
     private ScanReceiver mReceiver;
     private AlarmManager am;
     private Boolean mIsGPSInRegion = false, mIsBTInRegion = false;
+    private long startScanTime, stopScanTime;
     private LocationManager mLocationManager;
     private MyLocationListener mLocationListener;
     public double[] addressX = new double[2];
@@ -69,6 +70,7 @@ public class GBScanService extends Service implements iBeaconScanManager.OniBeac
     private final static int MSG_UPDATE_DATABASE = 2006;
     private final static int MSG_SCAN_TIME_OUT = 2007;
     private final static int MSG_GPS_LOCATION_FIXED = 2009;
+    private final static int MSG_SET_ALARM = 2010;
 
     private final static int TYPE_DATA_IBEACON = 101;
     private final static int TYPE_DATA_GPS = 102;
@@ -94,7 +96,6 @@ public class GBScanService extends Service implements iBeaconScanManager.OniBeac
         setupiBeaconScanner();
         setupGps();
         updateSettingPreferences();
-        setupScanAlarms(mContext);
 
         // start scanning when first time service starts
         triggerScanProcedure();
@@ -134,6 +135,8 @@ public class GBScanService extends Service implements iBeaconScanManager.OniBeac
     private void setupScanAlarms(Context context) {
         Calendar calendar = Calendar.getInstance();
         calendar.setTimeInMillis(System.currentTimeMillis());
+        
+        
 
         if (isInRegion()) {
             calendar.add(Calendar.MINUTE, gpsPeriodIntter);
@@ -148,7 +151,12 @@ public class GBScanService extends Service implements iBeaconScanManager.OniBeac
         Intent intent = new Intent(ACTION_SCANNING_START);
         PendingIntent sender = PendingIntent.getBroadcast(
                 context, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT);
-        am.set(AlarmManager.RTC_WAKEUP, calendar.getTimeInMillis(), sender); // API 19 setExact()
+        
+        long totalScanTime = stopScanTime - startScanTime;
+        //log("Time: totalScanTime = " + totalScanTime);
+        //log("Time: lunchTime = " + (calendar.getTimeInMillis() - totalScanTime));
+        
+        am.set(AlarmManager.RTC_WAKEUP, calendar.getTimeInMillis() - totalScanTime, sender); // API 19 setExact()
     }
 
     private void triggerScanProcedure() {
@@ -168,13 +176,13 @@ public class GBScanService extends Service implements iBeaconScanManager.OniBeac
     }
 
     public void startGps(){
-        log("startGps");
+    	startScanTime = System.currentTimeMillis();
+        //log("Time: startScanTime = " + startScanTime);
         mLocationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0, 0, mLocationListener); // start gps tracking
         //mLocationManager.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 0, 0, mLocationListener);
     }
 
     public void stopGps() {
-        log("stopGps");
         mLocationManager.removeUpdates(mLocationListener);
     }
 
@@ -334,6 +342,12 @@ public class GBScanService extends Service implements iBeaconScanManager.OniBeac
                     dumpiBeaconData(beacon);
                     dbHelper.insertData(dataValues);
                 }
+                stopScanTime = System.currentTimeMillis();
+                //log("Time: stopScanTime = " + stopScanTime);
+                Message msgSetAlarm = new Message();
+                msgSetAlarm.what = MSG_SET_ALARM;
+                mHandler.sendMessage(msgSetAlarm);
+                
             }
         } else if (TYPE_DATA_GPS == type) {
             GBDatabaseHelper dbHelper = GBDatabaseHelper.getInstance(getBaseContext());
@@ -391,6 +405,7 @@ public class GBScanService extends Service implements iBeaconScanManager.OniBeac
     private boolean isInRegion() {
         return (mIsGPSInRegion || mIsBTInRegion);
     }
+    
 
     private void getAddress() {
         addressX[0] = gpsLocX1; //use array to sort address
@@ -406,7 +421,7 @@ public class GBScanService extends Service implements iBeaconScanManager.OniBeac
         @Override
         public void handleMessage(Message msg) {
             super.handleMessage(msg);
-            log("--- handlerMessage --- " + msg.what);
+            //log("--- handlerMessage --- " + msg.what);
             switch (msg.what) {
             case MSG_START_SCAN_GPS :
             {
@@ -487,6 +502,7 @@ public class GBScanService extends Service implements iBeaconScanManager.OniBeac
                 if (TYPE_DATA_GPS == updateType) {
                     // GPS scanning completed, start scan iBeacon
                     sendStartScaniBeaconMsg();
+                    
                 } else if (TYPE_DATA_IBEACON == updateType) {
                     // treat this type as end of scan procedure,
                     // broadcast ACTION_SCANNING_COMPLETED
@@ -510,6 +526,12 @@ public class GBScanService extends Service implements iBeaconScanManager.OniBeac
                 mHandler.sendMessage(msgStop);
             }
                 break;
+            case MSG_SET_ALARM :
+            {
+            	log("MSG_SET_ALARM");
+            	setupScanAlarms(mContext);
+            	break;
+            }
             default :
             	log("Should not be here.");
             	break;
@@ -539,7 +561,7 @@ public class GBScanService extends Service implements iBeaconScanManager.OniBeac
         @Override
         public void onLocationChanged(Location location) {
             log("Got location fixed: Lat = " + location.getLatitude() + " , Long = " + location.getLongitude());
-            stopGps();
+            //stopGps();
             sendLocationFixedMsg(
                     location.getLatitude(), location.getLongitude());
         }
