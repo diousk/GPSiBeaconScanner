@@ -3,9 +3,16 @@
     tools:context="com.demo.gpsibeaconscanner.GBMainActivity" >
 
     <item
-        android:id="@+id/action_settings"
+        android:id="@+id/action_sync_to_server"
+        android:icon="@drawable/ic_action_refresh"
         android:orderInCategory="100"
-        android:showAsAction="never"
+        android:showAsAction="ifRoom"
+        android:title="@string/action_sync_to_server"/>
+    <item
+        android:id="@+id/action_settings"
+        android:icon="@drawable/ic_action_settings"
+        android:orderInCategory="100"
+        android:showAsAction="ifRoom"
         android:title="@string/action_settings"/>
 
 </menu>

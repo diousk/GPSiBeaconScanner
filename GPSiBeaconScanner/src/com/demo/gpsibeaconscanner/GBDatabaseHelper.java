@@ -1,6 +1,10 @@
 package com.demo.gpsibeaconscanner;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 
 import android.content.ContentValues;
 import android.content.Context;
@@ -89,19 +93,77 @@ public class GBDatabaseHelper extends SQLiteOpenHelper{
 	 * @return
 	 */
 	public Cursor getAllDBData() {
+	    //TODO: try close database
 		String selectQuery = "SELECT  * FROM " + TABLE_NAME;
 	    SQLiteDatabase database = this.getWritableDatabase();
 	    Cursor cursor = database.rawQuery(selectQuery, null);
 	    return cursor;
 	}
 
-	public Cursor getNonSyncDBData() {
-		//TODO: implement this.
-		String selectQuery = "";
+	public int getAllDBDataCount() {
+	    int count = 0;
+	    String selectQuery = "SELECT  * FROM " + TABLE_NAME;
 	    SQLiteDatabase database = this.getWritableDatabase();
 	    Cursor cursor = database.rawQuery(selectQuery, null);
-	    return cursor;
+	    count = cursor.getCount();
+	    database.close();
+	    return count;
 	}
+
+	public int getNonSyncDBDataCount() {
+	    int count = 0;
+        String selectQuery = "SELECT  * FROM " + TABLE_NAME
+                +" where "+COLUMN_SYNC_STATUS+" = '"+"no"+"'";
+	    SQLiteDatabase database = this.getWritableDatabase();
+	    Cursor cursor = database.rawQuery(selectQuery, null);
+	    count = cursor.getCount();
+	    database.close();
+	    return count;
+	}
+
+	// this method only generate those data non-synchronized to server
+	public String genJSONfromDB(){
+        ArrayList<HashMap<String, String>> dbList;
+        dbList = new ArrayList<HashMap<String, String>>();
+        String selectQuery = "SELECT  * FROM " + TABLE_NAME
+                +" where "+COLUMN_SYNC_STATUS+" = '"+"no"+"'";
+        SQLiteDatabase database = this.getWritableDatabase();
+        Cursor cursor = database.rawQuery(selectQuery, null);
+        if (cursor.moveToFirst()) {
+            do {
+                HashMap<String, String> map = new HashMap<String, String>();
+                map.put(BaseColumns._ID, cursor.getString(
+                        cursor.getColumnIndexOrThrow(BaseColumns._ID)));
+                map.put(COLUMN_TYPE, cursor.getString(
+                        cursor.getColumnIndexOrThrow(COLUMN_TYPE)));
+                map.put(COLUMN_TIMESTAMP, cursor.getString(
+                        cursor.getColumnIndexOrThrow(COLUMN_TIMESTAMP)));
+                map.put(COLUMN_DATA, cursor.getString(
+                        cursor.getColumnIndexOrThrow(COLUMN_DATA)));
+                map.put(COLUMN_EXTRA1, cursor.getString(
+                        cursor.getColumnIndexOrThrow(COLUMN_EXTRA1)));
+                map.put(COLUMN_EXTRA2, cursor.getString(
+                        cursor.getColumnIndexOrThrow(COLUMN_EXTRA2)));
+                map.put(COLUMN_DEVICE_ID, cursor.getString(
+                        cursor.getColumnIndexOrThrow(COLUMN_DEVICE_ID)));
+                map.put(COLUMN_SYNC_STATUS, cursor.getString(
+                        cursor.getColumnIndexOrThrow(COLUMN_SYNC_STATUS)));
+                dbList.add(map);
+            } while (cursor.moveToNext());
+        }
+        database.close();
+        Gson gson = new GsonBuilder().create();
+        return gson.toJson(dbList);
+    }
+
+    public void updateSyncStatus(String id, String status){
+        SQLiteDatabase database = this.getWritableDatabase();
+        String updateQuery = "Update " + TABLE_NAME
+                +" set " + COLUMN_SYNC_STATUS +" = '"+ status +"'"
+                +" where " + BaseColumns._ID + "="+"'"+ id +"'";
+        database.execSQL(updateQuery);
+        database.close();
+    }
 
 	public void deleteTable() {
 		SQLiteDatabase database = this.getWritableDatabase();
@@ -109,5 +171,4 @@ public class GBDatabaseHelper extends SQLiteOpenHelper{
 		database.close();
 	}
 
-	// TODO: implement interfaces to MySQL
 }

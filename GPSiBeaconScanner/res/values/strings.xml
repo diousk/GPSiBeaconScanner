@@ -3,7 +3,9 @@
 
     <string name="app_name">GPSiBeaconScanner</string>
     <string name="action_settings">Settings</string>
+    <string name="action_sync_to_server">Sync DB to Server</string>
 	<string name="local_service_started">Scan service running</string>
+	<string name="string_uploading_db">Uploading database to server, please wait&#8230;</string>
 	<string name="string_stop_scanning">Stop scanning</string>
 	<string name="string_start_scanning">Start scanning</string>
 	<string name="string_update_result">Update result</string>

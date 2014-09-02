@@ -1,5 +1,11 @@
 package com.demo.gpsibeaconscanner;
 
+import org.apache.http.Header;
+
+import com.loopj.android.http.AsyncHttpClient;
+import com.loopj.android.http.AsyncHttpResponseHandler;
+import com.loopj.android.http.RequestParams;
+
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.app.Fragment;
@@ -49,11 +55,43 @@ public class GBMainActivity extends Activity {
         	intent.setClass(this, GBPreferences.class);
         	startActivity(intent);
 			return true;
+		} else if (id == R.id.action_sync_to_server) {
+            GBDatabaseHelper dbHelper =
+                    GBDatabaseHelper.getInstance(this.getBaseContext());
+            String jsonDBStr = dbHelper.genJSONfromDB();
+            log("action_sync_to_server: " + jsonDBStr);
+            syncLocalDBtoServer(jsonDBStr);
 		}
 		return super.onOptionsItemSelected(item);
 	}
 
-	public static class GBMainFragment extends Fragment {
+	private void syncLocalDBtoServer(String dbStr) {
+	    AsyncHttpClient client = new AsyncHttpClient();
+	    RequestParams params = new RequestParams();
+        GBDatabaseHelper dbHelper =
+                GBDatabaseHelper.getInstance(this.getBaseContext());
+        if (dbHelper.getAllDBDataCount() != 0 &&
+                dbHelper.getNonSyncDBDataCount() != 0) {
+            params.put("usersJSON", dbHelper.genJSONfromDB());
+            client.post("http://xxx.xxx.xxx.xxx/insertdb.php", params, hAsyncHTTP);
+        }
+    }
+
+	private AsyncHttpResponseHandler hAsyncHTTP = new AsyncHttpResponseHandler() {
+
+        @Override
+        public void onSuccess(int statusCode, Header[] headers, byte[] responseBody) {
+            log("onSuccess: " + new String(responseBody));
+        }
+
+        @Override
+        public void onFailure(int statusCode, Header[] headers, byte[] responseBody,
+                Throwable error) {
+            log("onFailure: " + statusCode + new String(responseBody));
+        }
+	};
+
+    public static class GBMainFragment extends Fragment {
 		private ListView mListView= null;
 		private Button mBtnDeleteDB, mBtnUpdateResult;
 		private ToggleButton mBtnScan;
