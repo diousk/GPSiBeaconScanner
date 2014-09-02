@@ -158,9 +158,9 @@ public class GBDatabaseHelper extends SQLiteOpenHelper{
 
     public void updateSyncStatus(String id, String status){
         SQLiteDatabase database = this.getWritableDatabase();
-        String updateQuery = "Update " + TABLE_NAME
+        String updateQuery = "update " + TABLE_NAME
                 +" set " + COLUMN_SYNC_STATUS +" = '"+ status +"'"
-                +" where " + BaseColumns._ID + "="+"'"+ id +"'";
+                +" where " + BaseColumns._ID + " = '"+ id +"'";
         database.execSQL(updateQuery);
         database.close();
     }
@@ -168,6 +168,7 @@ public class GBDatabaseHelper extends SQLiteOpenHelper{
 	public void deleteTable() {
 		SQLiteDatabase database = this.getWritableDatabase();
 		database.delete(TABLE_NAME, null, null);
+		database.execSQL("DELETE FROM SQLITE_SEQUENCE WHERE NAME = '" + TABLE_NAME + "'");
 		database.close();
 	}
 
