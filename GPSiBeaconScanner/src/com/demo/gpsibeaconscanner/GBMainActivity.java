@@ -1,10 +1,9 @@
 package com.demo.gpsibeaconscanner;
 
 import org.apache.http.Header;
-
-import com.loopj.android.http.AsyncHttpClient;
-import com.loopj.android.http.AsyncHttpResponseHandler;
-import com.loopj.android.http.RequestParams;
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
 
 import android.app.Activity;
 import android.app.AlertDialog;
@@ -15,6 +14,7 @@ import android.content.DialogInterface;
 import android.content.Intent;
 import android.location.LocationManager;
 import android.os.Bundle;
+import android.preference.PreferenceManager;
 import android.provider.Settings;
 import android.util.Log;
 import android.view.LayoutInflater;
@@ -22,14 +22,21 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.AdapterView;
+import android.widget.AdapterView.OnItemLongClickListener;
 import android.widget.Button;
 import android.widget.CompoundButton;
 import android.widget.ListView;
 import android.widget.Toast;
 import android.widget.ToggleButton;
 
+import com.loopj.android.http.AsyncHttpClient;
+import com.loopj.android.http.AsyncHttpResponseHandler;
+import com.loopj.android.http.RequestParams;
+
 public class GBMainActivity extends Activity {
     private final static String TAG = "GBMain";
+    private Context mContext;
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
@@ -39,6 +46,7 @@ public class GBMainActivity extends Activity {
 			getFragmentManager().beginTransaction()
 					.add(R.id.container, new GBMainFragment()).commit();
 		}
+		mContext = getBaseContext();
 	}
 
 	@Override
@@ -72,7 +80,7 @@ public class GBMainActivity extends Activity {
                 GBDatabaseHelper.getInstance(this.getBaseContext());
         if (dbHelper.getAllDBDataCount() != 0 &&
                 dbHelper.getNonSyncDBDataCount() != 0) {
-            params.put("usersJSON", dbHelper.genJSONfromDB());
+            params.put("usersJSON", dbStr);
             client.post("http://xxx.xxx.xxx.xxx/insertdb.php", params, hAsyncHTTP);
         }
     }
@@ -82,12 +90,27 @@ public class GBMainActivity extends Activity {
         @Override
         public void onSuccess(int statusCode, Header[] headers, byte[] responseBody) {
             log("onSuccess: " + new String(responseBody));
+            try {
+                GBDatabaseHelper dbHelper =
+                        GBDatabaseHelper.getInstance(mContext);
+                JSONArray arr = new JSONArray(new String(responseBody));
+                for(int i=0; i<arr.length();i++){
+                    JSONObject obj = (JSONObject)arr.get(i);
+                    log("id : "+obj.get("id"));
+                    log("status : "+obj.get("status"));
+                    dbHelper.updateSyncStatus(obj.get("id").toString(),obj.get("status").toString());
+                }
+                Toast.makeText(mContext, "DB Sync completed!", Toast.LENGTH_LONG).show();
+            } catch (JSONException e) {
+                Toast.makeText(mContext, "Error Occured [Server's JSON response might be invalid]!", Toast.LENGTH_LONG).show();
+            }
         }
 
         @Override
         public void onFailure(int statusCode, Header[] headers, byte[] responseBody,
                 Throwable error) {
-            log("onFailure: " + statusCode + new String(responseBody));
+            log("onFailure: " + statusCode + error.getCause());
+            Toast.makeText(mContext, "Failed to sync", Toast.LENGTH_LONG).show();
         }
 	};
 
@@ -153,7 +176,7 @@ public class GBMainActivity extends Activity {
 		private void checkGPSEnabled() {
 	        mLocationManager = (LocationManager) mContext.getSystemService(Context.LOCATION_SERVICE);
 	        boolean gpsEnable = mLocationManager.isProviderEnabled(LocationManager.GPS_PROVIDER);
-	        
+
 	        if(!gpsEnable) {
 	            new AlertDialog.Builder(mContext)
 	                .setIcon(android.R.drawable.ic_menu_mapmode)
@@ -181,27 +204,50 @@ public class GBMainActivity extends Activity {
             mListAdapter = new GBCursorAdapter(
                     this.getActivity(), R.layout.data_list_row, dbHelper.getAllDBData(),0);
             mListView.setAdapter(mListAdapter);
+            mListView.setOnItemLongClickListener(new OnItemLongClickListener(){
+
+                @Override
+                public boolean onItemLongClick(AdapterView<?> adapter, View view,
+                        int position, long id) {
+                    /*
+                    TextView type = (TextView) view.findViewById(R.id.text_data_type);
+                    TextView data = (TextView) view.findViewById(R.id.text_data);
+                    if ("iBeacon".equals(type.getText().toString())) {
+                        showDialogAddToWatchList(data.getText().toString());
+                    }*/
+                    return true;
+                }
+
+                private void showDialogAddToWatchList(final String info) {
+                    new AlertDialog.Builder(mContext)
+                    .setIcon(android.R.drawable.ic_menu_add)
+                    .setTitle("Operation")
+                    .setMessage("Add UUID:'"+info+"' to watch list?")
+                    .setPositiveButton("Ok", new DialogInterface.OnClickListener() {
+                        public void onClick(DialogInterface dialog, int which1) {
+                            GBPreferences.addiBeaconToWatchList(mContext, info);
+                        }
+                    })
+                    .setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
+                        public void onClick(DialogInterface dialog, int which) {
+                        }
+                    }).show();
+                }
+            });
 
             // buttons
             mBtnScan = (ToggleButton)(this.getView().findViewById(R.id.btn_scan));
+            boolean scanning = PreferenceManager.getDefaultSharedPreferences(
+                    this.getActivity()).getBoolean("scanRunning", false);
+            mBtnScan.setChecked(scanning);
             mBtnScan.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
                 public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
                     if (isChecked) {
                         Intent i = new Intent(mContext, GBScanService.class);
                         mContext.startService(i);
-
-                        // this intent should be broadcasted by alarm manager
-                        /*Intent intentStartScan = new Intent("scanning.start");
-                        mContext.sendBroadcast(intentStartScan);*/
                     } else {
                         Intent i = new Intent(mContext, GBScanService.class);
                         mContext.stopService(i);
-
-                        // this intent should be broadcasted by alarm manager
-                        /*
-                        Intent intentStartScan = new Intent("scanning.stop");
-                        mContext.sendBroadcast(intentStartScan);
-                        */
                     }
                 }
             });

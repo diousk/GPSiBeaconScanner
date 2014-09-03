@@ -10,8 +10,8 @@
         <EditTextPreference
             android:defaultValue="2"
             android:key="gpstracking_pref"
-            android:summary="Default value = 3 minutes"
-            android:title="How many minutes do you want to track for get fix location from gps" />
+            android:summary="Default value = 2 minutes"
+            android:title="Timeout for gps scanning" />
         <EditTextPreference
             android:defaultValue="5"
             android:key="gpsPeriodIntter_pref"
@@ -57,6 +57,12 @@
             android:key="iBeaconInvalidTimeout_pref"
             android:summary="Default value = 30 seconds"
             android:title="Timeout for disposing scanned iBeacon" />
+        <!-- 
+        <Preference
+            android:key="iBeaconWatchlist_pref"
+            android:title="iBeacon watch list"
+            android:summary="click to edit watch list"
+            /> -->
     </PreferenceCategory>
 
 </PreferenceScreen>

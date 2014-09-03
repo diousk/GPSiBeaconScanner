@@ -27,16 +27,17 @@ public final class R {
         public static final int ic_launcher=0x7f020002;
     }
     public static final class id {
-        public static final int action_settings=0x7f090009;
-        public static final int action_sync_to_server=0x7f090008;
-        public static final int btn_delete_db=0x7f090007;
-        public static final int btn_scan=0x7f090004;
-        public static final int btn_update_result=0x7f090005;
+        public static final int action_settings=0x7f09000a;
+        public static final int action_sync_to_server=0x7f090009;
+        public static final int btn_delete_db=0x7f090008;
+        public static final int btn_scan=0x7f090005;
+        public static final int btn_update_result=0x7f090006;
         public static final int container=0x7f090000;
-        public static final int data_list=0x7f090006;
+        public static final int data_list=0x7f090007;
         public static final int text_data=0x7f090002;
         public static final int text_data_type=0x7f090001;
-        public static final int text_timestamp=0x7f090003;
+        public static final int text_extra1=0x7f090003;
+        public static final int text_timestamp=0x7f090004;
     }
     public static final class layout {
         public static final int activity_gbmain=0x7f030000;
@@ -53,9 +54,10 @@ public final class R {
         public static final int local_service_started=0x7f060003;
         public static final int string_clear_database=0x7f060008;
         public static final int string_data=0x7f060009;
+        public static final int string_extra1=0x7f06000a;
         public static final int string_start_scanning=0x7f060006;
         public static final int string_stop_scanning=0x7f060005;
-        public static final int string_timestamp=0x7f06000a;
+        public static final int string_timestamp=0x7f06000b;
         public static final int string_update_result=0x7f060007;
         public static final int string_uploading_db=0x7f060004;
     }

@@ -63,11 +63,11 @@
 	        android:gravity="left|center_vertical"
 	        android:singleLine="true"
 	        android:paddingLeft="2dp"
-	        android:text="@string/string_timestamp"
+	        android:text="@string/string_extra1"
 	    />
-	    
+
 	    <TextView
-	        android:id="@+id/text_timestamp"
+	        android:id="@+id/text_extra1"
 	        android:layout_width="wrap_content"
 	        android:layout_height="wrap_content"
 	        android:gravity="center"
@@ -77,6 +77,35 @@
 	    
 	</LinearLayout>
 	
+    <Space android:layout_width="match_parent" android:layout_height="5dp" />
+        <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="left|center_vertical"
+        android:weightSum="720"
+        >
+        
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:gravity="left|center_vertical"
+            android:singleLine="true"
+            android:paddingLeft="2dp"
+            android:text="@string/string_timestamp"
+        />
+        
+        <TextView
+            android:id="@+id/text_timestamp"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:singleLine="true"
+            android:ellipsize="none"
+        />
+        
+    </LinearLayout>
+    
     <Space android:layout_width="match_parent" android:layout_height="5dp" />
 </LinearLayout>
 

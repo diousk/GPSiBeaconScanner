@@ -2,8 +2,6 @@
 package com.demo.gpsibeaconscanner;
 import java.util.LinkedList;
 
-import android.util.Log;
-
 import com.THLight.USBeacon.App.Lib.iBeaconData;
 /** ============================================================== */
 
