@@ -33,6 +33,7 @@ import android.widget.Toast;
 
 import com.THLight.USBeacon.App.Lib.iBeaconData;
 import com.THLight.USBeacon.App.Lib.iBeaconScanManager;
+import com.demo.gpsibeaconscanner.MyLocation.LocationResult;
 
 public class GBScanService extends Service implements iBeaconScanManager.OniBeaconScan{
     private final static String TAG = "GBScanService";
@@ -44,8 +45,12 @@ public class GBScanService extends Service implements iBeaconScanManager.OniBeac
     private AlarmManager am;
     private Boolean mIsGPSInRegion = false, mIsBTInRegion = false;
     private long startScanTime, stopScanTime;
+    private MyLocation mMyLocation;
+    private LocationResult mLocationResult;
+    /*
     private LocationManager mLocationManager;
     private MyLocationListener mLocationListener;
+    */
     public double[] addressX = new double[2];
     public double[] addressY = new double[2];
 
@@ -114,11 +119,21 @@ public class GBScanService extends Service implements iBeaconScanManager.OniBeac
     }
 
     private void setupGps() {
-        if (mLocationManager == null)
-            mLocationManager = (LocationManager)getSystemService(LOCATION_SERVICE);
+        if (mMyLocation == null) {
+        	mMyLocation = new MyLocation();
+        }
 
-        if (mLocationListener == null)
-            mLocationListener = new MyLocationListener();
+        if (mLocationResult == null)
+        	mLocationResult = new LocationResult(){
+            @Override
+            public void gotLocation(Location location){
+                if (location == null) return;
+                log("Got location fixed: Lat = " + location.getLatitude()
+                		+ " , Long = " + location.getLongitude());
+                sendLocationFixedMsg(
+                        location.getLatitude(), location.getLongitude());
+            }
+        };
     }
 
     @Override
@@ -203,13 +218,14 @@ public class GBScanService extends Service implements iBeaconScanManager.OniBeac
     public void startGps(){
     	startScanTime = System.currentTimeMillis();
         //log("Time: startScanTime = " + startScanTime);
-        mLocationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0, 0, mLocationListener); // start gps tracking
+        //mLocationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0, 0, mLocationListener); // start gps tracking
         //mLocationManager.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 0, 0, mLocationListener);
+    	mMyLocation.startLocation(mContext, mLocationResult);
     }
 
     public void stopGpsIfPossible() {
-        if (mLocationManager != null && mLocationListener != null){
-            mLocationManager.removeUpdates(mLocationListener);
+        if (mMyLocation != null){
+        	mMyLocation.stopLocation();
         }
     }
 
