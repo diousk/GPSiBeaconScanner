@@ -1,22 +1,29 @@
 <?xml version="1.0" encoding="utf-8"?>
 <PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android" >
-
-    <PreferenceCategory android:title="GPS Settings" >
+    <PreferenceCategory android:title="Gernal Settings" >
         <EditTextPreference
             android:defaultValue="60"
             android:key="gpsPeriodOutter_pref"
             android:summary="Default value = 60 minutes"
-            android:title="Gps tracking time period outter given region" />
+            android:title="Time period outer given region" />
+        <EditTextPreference
+            android:defaultValue="5"
+            android:key="gpsPeriodIntter_pref"
+            android:summary="Default value = 5 minutes"
+            android:title="Time period inner given region" />
+	    <CheckBoxPreference
+	        android:title="Auto sync database"
+	        android:summary="Auto sync database to server after scanning"
+	        android:key="autoSync_pref"
+	        android:defaultValue="false"/>
+    </PreferenceCategory>
+
+    <PreferenceCategory android:title="GPS Settings" >
         <EditTextPreference
             android:defaultValue="2"
             android:key="gpstracking_pref"
             android:summary="Default value = 2 minutes"
             android:title="Timeout for gps scanning" />
-        <EditTextPreference
-            android:defaultValue="5"
-            android:key="gpsPeriodIntter_pref"
-            android:summary="Default value = 5 minutes"
-            android:title="Gps tracking time period intter given region" />
         
         <!--  25.121711, 121.499363 -->
         <EditTextPreference
@@ -48,21 +55,21 @@
     
     <PreferenceCategory android:title="iBeacon Settings" >
         <EditTextPreference
-            android:defaultValue="60"
+            android:defaultValue="30"
             android:key="iBeaconScanningTracking_pref"
-            android:summary="Default value = 60 seconds"
+            android:summary="Default value = 30 seconds"
             android:title="iBeacon tracking time per scanning" />
         <EditTextPreference
-            android:defaultValue="30"
+            android:defaultValue="20"
             android:key="iBeaconInvalidTimeout_pref"
-            android:summary="Default value = 30 seconds"
-            android:title="Timeout for disposing scanned iBeacon" />
-        <!-- 
+            android:summary="Default value = 20 seconds"
+            android:title="Timeout for stale iBeacons" />
+
         <Preference
             android:key="iBeaconWatchlist_pref"
             android:title="iBeacon watch list"
             android:summary="click to edit watch list"
-            /> -->
+            />
     </PreferenceCategory>
 
 </PreferenceScreen>

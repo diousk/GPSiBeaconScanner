@@ -1,13 +1,17 @@
 package com.demo.gpsibeaconscanner;
 
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Calendar;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 
 import android.app.AlarmManager;
 import android.app.Notification;
+import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.Service;
 import android.content.BroadcastReceiver;
@@ -49,16 +53,19 @@ public class GBScanService extends Service implements iBeaconScanManager.OniBeac
     private iBeaconScanManager miScaner = null;
     private List<ScanediBeacon> miBeacons = new ArrayList<ScanediBeacon>();
     private Object mBeaconsObj = new Object();
-    private int mBeaconScanTime = 60000; //default 60s
-    private int mBeaconTimeout = 30000; //default 30s, means invalid if too old
+    private int mBeaconScanTime = 30000; //default 60s
+    private int mBeaconTimeout = 20000; //default 30s, means invalid if too old
 
     // GPS component
-    public int gpsPeriodOutter, gpstracking, gpsPeriodIntter;
-    public double gpsLocX1, gpsLocY1, gpsLocX2, gpsLocY2;
+    private int gpstracking;
+    private double gpsLocX1, gpsLocY1, gpsLocX2, gpsLocY2;
+
+    // General component
+    private int periodOuter, periodInner;
+    private boolean autoSyncEnabled = false;
 
     private final static String ACTION_SCANNING_START = "scanning.start"; // should be trigger by alarm manager
     private final static String ACTION_SCANNING_STOP = "scanning.stop"; // should be trigger by alarm manager
-    private final static String ACTION_DB_UPDATED = "db.updated";
 
     private final static int MSG_START_SCAN_GPS = 2001;
     private final static int MSG_START_SCAN_IBEACON = 2002;
@@ -69,6 +76,7 @@ public class GBScanService extends Service implements iBeaconScanManager.OniBeac
     private final static int MSG_SCAN_TIME_OUT = 2007;
     private final static int MSG_GPS_LOCATION_FIXED = 2009;
     private final static int MSG_SET_ALARM = 2010;
+    private final static int MSG_SYNC_DB_TO_SERVER = 2011;
 
     private final static int TYPE_DATA_IBEACON = 101;
     private final static int TYPE_DATA_GPS = 102;
@@ -145,18 +153,18 @@ public class GBScanService extends Service implements iBeaconScanManager.OniBeac
         addOrUpdateiBeacon(iBeacon);
     }
 
-    private void setupScanAlarms(Context context) {
+    private long setupScanAlarms(Context context) {
         Calendar calendar = Calendar.getInstance();
         calendar.setTimeInMillis(System.currentTimeMillis());
         boolean inRegion = isInRegion();
         if (inRegion) {
-            calendar.add(Calendar.MINUTE, gpsPeriodIntter);
+            calendar.add(Calendar.MINUTE, periodInner);
         } else {
-            calendar.add(Calendar.MINUTE, gpsPeriodOutter);
+            calendar.add(Calendar.MINUTE, periodOuter);
         }
         log("setupScanAlarms - isInRegion: " + inRegion
-                + ", gpsPeriodIntter:" + gpsPeriodIntter
-                + ", gpsPeriodOutter:" + gpsPeriodOutter);
+                + ", gpsPeriodIntter:" + periodInner
+                + ", gpsPeriodOutter:" + periodOuter);
 
         am = (AlarmManager) getSystemService(ALARM_SERVICE);
         Intent intent = new Intent(ACTION_SCANNING_START);
@@ -166,8 +174,9 @@ public class GBScanService extends Service implements iBeaconScanManager.OniBeac
         long totalScanTime = stopScanTime - startScanTime;
         //log("Time: totalScanTime = " + totalScanTime);
         //log("Time: lunchTime = " + (calendar.getTimeInMillis() - totalScanTime));
-
-        am.set(AlarmManager.RTC_WAKEUP, calendar.getTimeInMillis() - totalScanTime, sender); // API 19 setExact()
+        long triggerTime = calendar.getTimeInMillis() - totalScanTime;
+        am.set(AlarmManager.RTC_WAKEUP, triggerTime, sender); // API 19 setExact()
+        return triggerTime;
     }
 
     private void triggerScanProcedure() {
@@ -205,10 +214,12 @@ public class GBScanService extends Service implements iBeaconScanManager.OniBeac
         SharedPreferences mySharedPreferences;
         mySharedPreferences = PreferenceManager.getDefaultSharedPreferences(this);
 
+        autoSyncEnabled = mySharedPreferences.getBoolean("autoSync_pref", false);
+        log("autoSyncEnabled= "+ autoSyncEnabled);
         // update GPS part
         gpstracking = Integer.valueOf(mySharedPreferences.getString("gpstracking_pref", "0"));
-        gpsPeriodOutter = Integer.valueOf(mySharedPreferences.getString("gpsPeriodOutter_pref", "0"));
-        gpsPeriodIntter = Integer.valueOf(mySharedPreferences.getString("gpsPeriodIntter_pref", "0"));
+        periodOuter = Integer.valueOf(mySharedPreferences.getString("gpsPeriodOutter_pref", "0"));
+        periodInner = Integer.valueOf(mySharedPreferences.getString("gpsPeriodIntter_pref", "0"));
         gpsLocX1 = Double.valueOf(mySharedPreferences.getString("gpsx1_pref", "0.0"));
         gpsLocY1 = Double.valueOf(mySharedPreferences.getString("gpsy1_pref", "0.0"));
         gpsLocX2 = Double.valueOf(mySharedPreferences.getString("gpsx2_pref", "0.0"));
@@ -253,6 +264,18 @@ public class GBScanService extends Service implements iBeaconScanManager.OniBeac
         msg.sendToTarget();
     }
 
+    public void sendSetAlarmMsg(){
+        log("sendSetAlarmMsg");
+        Message msg = mHandler.obtainMessage(MSG_SET_ALARM);
+        msg.sendToTarget();
+    }
+
+    public void sendSyncDBMsg(){
+        log("sendSyncDBMsg");
+        Message msg = mHandler.obtainMessage(MSG_SYNC_DB_TO_SERVER);
+        msg.sendToTarget();
+    }
+
     public void sendLocationFixedMsg(double latitude, double longitude) {
         mHandler.removeMessages(MSG_SCAN_TIME_OUT);
 
@@ -276,12 +299,32 @@ public class GBScanService extends Service implements iBeaconScanManager.OniBeac
 
         Notification notification = new Notification.Builder(this.getBaseContext())
                  .setTicker(text)
+                 .setContentTitle("Scan Service Starts")
                  .setSmallIcon(android.R.drawable.stat_notify_more)
                  .setWhen(System.currentTimeMillis())
                  .setContentIntent(contentIntent)
                  .build();
 
         startForeground(NOTIFICATION, notification);
+    }
+
+    private void updateForegroundNotification(String msg, String content) {
+        // The PendingIntent to launch our activity if the user selects this notification
+        PendingIntent contentIntent = PendingIntent.getActivity(this, 0,
+                new Intent(this, GBMainActivity.class), 0);
+
+        Notification notification = new Notification.Builder(this.getBaseContext())
+            .setTicker(msg)
+            .setContentTitle(msg)
+            .setContentText(content)
+            .setSmallIcon(android.R.drawable.stat_notify_more)
+            .setWhen(System.currentTimeMillis())
+            .setContentIntent(contentIntent)
+            .build();
+
+        NotificationManager mNotificationManager =
+                (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+        mNotificationManager.notify(NOTIFICATION, notification);
     }
 
     private void verifyValidiBeacons() {
@@ -354,10 +397,6 @@ public class GBScanService extends Service implements iBeaconScanManager.OniBeac
                 }
                 stopScanTime = System.currentTimeMillis();
                 //log("Time: stopScanTime = " + stopScanTime);
-                Message msgSetAlarm = new Message();
-                msgSetAlarm.what = MSG_SET_ALARM;
-                mHandler.sendMessage(msgSetAlarm);
-                
             }
         } else if (TYPE_DATA_GPS == type) {
             GBDatabaseHelper dbHelper = GBDatabaseHelper.getInstance(getBaseContext());
@@ -375,6 +414,7 @@ public class GBScanService extends Service implements iBeaconScanManager.OniBeac
     }
 
     private void dumpiBeaconData(ScanediBeacon beacon) {
+        synchronized (mBeaconsObj) {
     	log("dumpiBeaconData : "
     			+ "UUID: " + beacon.beaconUuid
     			+ ", major: " + beacon.major
@@ -383,6 +423,7 @@ public class GBScanService extends Service implements iBeaconScanManager.OniBeac
     			+ ", lastUpdate: " + beacon.lastUpdate
     			+ ", oneMeterRssi" + beacon.oneMeterRssi
     			);
+        }
 	}
 
 	private void updateGPSRegion(double Lat, double Long) {
@@ -409,11 +450,14 @@ public class GBScanService extends Service implements iBeaconScanManager.OniBeac
     }
 
     private boolean checkIfSpecifiediBeacons(ScanediBeacon beacon) {
-        boolean specified = false;
-        specified = GBWatchList.containsiBeacon(String.valueOf(beacon.beaconUuid),
-                String.valueOf(beacon.major), String.valueOf(beacon.minor));
-        log("checkIfSpecifiediBeacons " + specified);
-        return specified;
+        boolean isWatched = false;
+        isWatched = GBWatchList.isiBeaconWatched(mContext,
+                String.valueOf(beacon.beaconUuid) + ":" +
+                String.valueOf(beacon.major) + ":" +
+                String.valueOf(beacon.minor));
+        log("GBWatchList getDefCount : " + GBWatchList.getDefCount());
+        log("checkIfSpecifiediBeacons " + isWatched);
+        return isWatched;
     }
 
     private boolean isInRegion() {
@@ -442,6 +486,7 @@ public class GBScanService extends Service implements iBeaconScanManager.OniBeac
             case MSG_START_SCAN_GPS :
             {
                 log("MSG_START_SCAN_GPS");
+                updateForegroundNotification("Start GPS scanning", "");
                 getAddress();
                 startGps();
 
@@ -479,6 +524,7 @@ public class GBScanService extends Service implements iBeaconScanManager.OniBeac
             case MSG_START_SCAN_IBEACON :
             {
                 log("MSG_START_SCAN_IBEACON");
+                updateForegroundNotification("Start iBeacon scanning", "");
                 synchronized (mBeaconsObj) {
                     miBeacons.clear();
                 }
@@ -521,10 +567,13 @@ public class GBScanService extends Service implements iBeaconScanManager.OniBeac
                     
                 } else if (TYPE_DATA_IBEACON == updateType) {
                     // treat this type as end of scan procedure,
-                    // broadcast ACTION_SCANNING_COMPLETED
-                    Intent intent = new Intent(ACTION_DB_UPDATED);
-                    mContext.sendBroadcast(intent);
-                    GBUtils.releaseCpuWakeLock();
+                    if (autoSyncEnabled) {
+                        // will set alarm after sync
+                        sendSyncDBMsg();
+                    } else {
+                        // set next alarm and release wakelock
+                        sendSetAlarmMsg();
+                    }
                 }
             }
                 break;
@@ -545,8 +594,26 @@ public class GBScanService extends Service implements iBeaconScanManager.OniBeac
             case MSG_SET_ALARM :
             {
             	log("MSG_SET_ALARM");
-            	setupScanAlarms(mContext);
+            	long triggerTime = setupScanAlarms(mContext);
+            	// calculate readable time and show on notification
+                SimpleDateFormat sdf = new SimpleDateFormat(
+                        "yyyy/MM/dd HH:mm:ss", Locale.getDefault());
+                Date resultdate = new Date(triggerTime);
+                String readableDate = sdf.format(resultdate);
+                updateForegroundNotification("Next scanning: ", readableDate);
+                GBUtils.releaseCpuWakeLock();
             	break;
+            }
+            case MSG_SYNC_DB_TO_SERVER:
+            {
+                log("MSG_SYNC_DB_TO_SERVER");
+                if (GBUtils.isNetworkOnline(mContext)) {
+                    Message msgBack = mHandler.obtainMessage(MSG_SET_ALARM);
+                    GBUtils.syncLocalDBtoServer(mContext, new ServerResponseHandler(mContext,msgBack));
+                } else {
+                    Toast.makeText(mContext, "Please connect to network first!", Toast.LENGTH_LONG).show();
+                }
+                break;
             }
             default :
             	log("Should not be here.");

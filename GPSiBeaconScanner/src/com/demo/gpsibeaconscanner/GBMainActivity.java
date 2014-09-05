@@ -1,10 +1,5 @@
 package com.demo.gpsibeaconscanner;
 
-import org.apache.http.Header;
-import org.json.JSONArray;
-import org.json.JSONException;
-import org.json.JSONObject;
-
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.app.Fragment;
@@ -27,16 +22,16 @@ import android.widget.AdapterView.OnItemLongClickListener;
 import android.widget.Button;
 import android.widget.CompoundButton;
 import android.widget.ListView;
+import android.widget.TextView;
 import android.widget.Toast;
 import android.widget.ToggleButton;
 
-import com.loopj.android.http.AsyncHttpClient;
 import com.loopj.android.http.AsyncHttpResponseHandler;
-import com.loopj.android.http.RequestParams;
 
 public class GBMainActivity extends Activity {
     private final static String TAG = "GBMain";
     private Context mContext;
+    private AsyncHttpResponseHandler hAsyncHTTP;
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
@@ -47,6 +42,7 @@ public class GBMainActivity extends Activity {
 					.add(R.id.container, new GBMainFragment()).commit();
 		}
 		mContext = getBaseContext();
+		hAsyncHTTP = new ServerResponseHandler(mContext);
 	}
 
 	@Override
@@ -64,56 +60,16 @@ public class GBMainActivity extends Activity {
         	startActivity(intent);
 			return true;
 		} else if (id == R.id.action_sync_to_server) {
-            GBDatabaseHelper dbHelper =
-                    GBDatabaseHelper.getInstance(this.getBaseContext());
-            String jsonDBStr = dbHelper.genJSONfromDB();
-            log("action_sync_to_server: " + jsonDBStr);
-            syncLocalDBtoServer(jsonDBStr);
+		    log("action_sync_to_server");
+		    // check network connection before sync
+		    if (GBUtils.isNetworkOnline(mContext)) {
+		        GBUtils.syncLocalDBtoServer(mContext, hAsyncHTTP);
+		    } else {
+		        Toast.makeText(mContext, "Please connect to network first!", Toast.LENGTH_LONG).show();
+		    }
 		}
 		return super.onOptionsItemSelected(item);
 	}
-
-	private void syncLocalDBtoServer(String dbStr) {
-	    AsyncHttpClient client = new AsyncHttpClient();
-	    RequestParams params = new RequestParams();
-        GBDatabaseHelper dbHelper =
-                GBDatabaseHelper.getInstance(this.getBaseContext());
-        if (dbHelper.getAllDBDataCount() != 0 &&
-                dbHelper.getNonSyncDBDataCount() != 0) {
-            params.put("recbeacons", dbStr);
-            client.post("http://www.yiezi.com/beacons/common/insertrec.php", params, hAsyncHTTP);
-        }
-    }
-
-	private AsyncHttpResponseHandler hAsyncHTTP = new AsyncHttpResponseHandler() {
-
-        @Override
-        public void onSuccess(int statusCode, Header[] headers, byte[] responseBody) {
-            log("onSuccess: " + new String(responseBody));
-            try {
-                GBDatabaseHelper dbHelper =
-                        GBDatabaseHelper.getInstance(mContext);
-                JSONArray arr = new JSONArray(new String(responseBody));
-                for(int i=0; i<arr.length();i++){
-                    JSONObject obj = (JSONObject)arr.get(i);
-                    log("_id : "+obj.get("_id"));
-                    log("syncstatus : "+obj.get("syncstatus"));
-                    dbHelper.updateSyncStatus(obj.get("_id").toString(),obj.get("syncstatus").toString());
-                }
-                Toast.makeText(mContext, "DB Sync completed!", Toast.LENGTH_LONG).show();
-            } catch (JSONException e) {
-                log(e.toString());
-                Toast.makeText(mContext, "Error Occured [Server's JSON response might be invalid]!", Toast.LENGTH_LONG).show();
-            }
-        }
-
-        @Override
-        public void onFailure(int statusCode, Header[] headers, byte[] responseBody,
-                Throwable error) {
-            log("onFailure: " + statusCode + error.getCause());
-            Toast.makeText(mContext, "Failed to sync", Toast.LENGTH_LONG).show();
-        }
-	};
 
     public static class GBMainFragment extends Fragment {
 		private ListView mListView= null;
@@ -144,6 +100,7 @@ public class GBMainActivity extends Activity {
 			    // BT on, check GPS
 				checkGPSEnabled();
 			}
+			GBWatchList.initializeWatchList(this.getActivity().getBaseContext());
 		}
 
         @Override
@@ -210,23 +167,28 @@ public class GBMainActivity extends Activity {
                 @Override
                 public boolean onItemLongClick(AdapterView<?> adapter, View view,
                         int position, long id) {
-                    /*
                     TextView type = (TextView) view.findViewById(R.id.text_data_type);
-                    TextView data = (TextView) view.findViewById(R.id.text_data);
+                    
                     if ("iBeacon".equals(type.getText().toString())) {
-                        showDialogAddToWatchList(data.getText().toString());
-                    }*/
+                        TextView data = (TextView) view.findViewById(R.id.text_data);
+                        TextView extra1 = (TextView) view.findViewById(R.id.text_extra1);
+                        String[] arrExtra1 = extra1.getText().toString().split("[,:]");
+                        String uuidMajMin = data.getText().toString()
+                                + ":" + arrExtra1[1] + ":" + arrExtra1[3];
+                        showDialogAddToWatchList(uuidMajMin);
+                    }
                     return true;
                 }
 
                 private void showDialogAddToWatchList(final String info) {
+                    log("showDialogAddToWatchList:" + info);
                     new AlertDialog.Builder(mContext)
                     .setIcon(android.R.drawable.ic_menu_add)
                     .setTitle("Operation")
-                    .setMessage("Add UUID:'"+info+"' to watch list?")
+                    .setMessage("Add this iBeacon to watch list?")
                     .setPositiveButton("Ok", new DialogInterface.OnClickListener() {
                         public void onClick(DialogInterface dialog, int which1) {
-                            GBPreferences.addiBeaconToWatchList(mContext, info);
+                            GBWatchList.addiBeaconToWatchList(mContext, info);
                         }
                     })
                     .setNegativeButton("Cancel", new DialogInterface.OnClickListener() {

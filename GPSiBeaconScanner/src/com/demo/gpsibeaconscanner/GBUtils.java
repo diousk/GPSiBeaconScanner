@@ -1,8 +1,17 @@
 package com.demo.gpsibeaconscanner;
 
+import com.loopj.android.http.AsyncHttpClient;
+import com.loopj.android.http.AsyncHttpResponseHandler;
+import com.loopj.android.http.RequestParams;
+
 import android.content.Context;
+import android.content.SharedPreferences;
+import android.net.ConnectivityManager;
+import android.net.NetworkInfo;
 import android.os.PowerManager;
+import android.preference.PreferenceManager;
 import android.util.Log;
+import android.widget.Toast;
 
 public class GBUtils {
     private final static String TAG = "GBUtils";
@@ -29,13 +38,44 @@ public class GBUtils {
             Log.d(TAG, "cpu wake lock already gone.");
         }
     }
-    // TODO: set configurable from preference fragment
-    public static final String[] MY_IBEACONS_UUID= {"", ""};
-    public static final String[] MY_IBEACONS_MAJOR= {"", ""};
-    public static final String[] MY_IBEACONS_MINOR= {"", ""};
-    public static boolean isMyiBeacons(String uuid, String major, String minor) {
-    	boolean isMatched = false;
-    	// TODO: implement this
-    	return isMatched;
+
+    public static boolean isNetworkOnline(Context context) {
+        ConnectivityManager cm =
+            (ConnectivityManager) context.getSystemService(Context.CONNECTIVITY_SERVICE);
+        NetworkInfo netInfo = cm.getActiveNetworkInfo();
+        if (netInfo != null && netInfo.isConnectedOrConnecting()) {
+            return true;
+        }
+        return false;
+    }
+
+    public static boolean isAutoSyncChecked(Context context) {
+        SharedPreferences settings = 
+                PreferenceManager.getDefaultSharedPreferences(context);
+        return settings.getBoolean("autoSync_pref", false);
+    }
+
+    public static void syncLocalDBtoServer(Context ctx, AsyncHttpResponseHandler handlerResp) {
+        GBDatabaseHelper dbHelper =
+                GBDatabaseHelper.getInstance(ctx);
+        String jsonDBStr = dbHelper.genJSONfromDB();
+
+        AsyncHttpClient client = new AsyncHttpClient();
+        RequestParams params = new RequestParams();
+        log("dbHelper.getAllDBDataCount() : " + dbHelper.getAllDBDataCount());
+        log("dbHelper.getNonSyncDBDataCount() : " + dbHelper.getNonSyncDBDataCount());
+        if (dbHelper.getAllDBDataCount() != 0 &&
+                dbHelper.getNonSyncDBDataCount() != 0) {
+            log("syncLocalDBtoServer: " + jsonDBStr);
+            Toast.makeText(ctx, "Sync DB to server ...", Toast.LENGTH_SHORT).show();
+            params.put("recbeacons", jsonDBStr);
+            client.post("http://www.yiezi.com/beacons/common/insertrec.php", params, handlerResp);
+        } else {
+            Toast.makeText(ctx, "No data needed to sync", Toast.LENGTH_LONG).show();
+        }
+    }
+
+    private static void log(String s) {
+        Log.d(TAG, s);
     }
 }

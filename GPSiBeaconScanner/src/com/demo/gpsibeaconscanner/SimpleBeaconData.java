@@ -1,5 +1,7 @@
 package com.demo.gpsibeaconscanner;
 
+import android.util.Log;
+
 public class SimpleBeaconData {
     private String mUUID;
     private String mMajor;
