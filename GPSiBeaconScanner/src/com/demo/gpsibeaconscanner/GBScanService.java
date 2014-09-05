@@ -95,6 +95,10 @@ public class GBScanService extends Service implements iBeaconScanManager.OniBeac
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         log("onStartCommand - intent " + intent);
+        if (intent == null) {
+            // server get killed by system and restart
+            cancelScanAlarm(mContext);
+        }
 
         showForegroundNotification();
         setupReceiver();
@@ -600,6 +604,7 @@ public class GBScanService extends Service implements iBeaconScanManager.OniBeac
                         "yyyy/MM/dd HH:mm:ss", Locale.getDefault());
                 Date resultdate = new Date(triggerTime);
                 String readableDate = sdf.format(resultdate);
+                log("Next scanning: "+ readableDate);
                 updateForegroundNotification("Next scanning: ", readableDate);
                 GBUtils.releaseCpuWakeLock();
             	break;
