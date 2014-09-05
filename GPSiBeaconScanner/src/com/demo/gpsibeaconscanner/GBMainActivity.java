@@ -80,8 +80,8 @@ public class GBMainActivity extends Activity {
                 GBDatabaseHelper.getInstance(this.getBaseContext());
         if (dbHelper.getAllDBDataCount() != 0 &&
                 dbHelper.getNonSyncDBDataCount() != 0) {
-            params.put("usersJSON", dbStr);
-            client.post("http://xxx.xxx.xxx.xxx/insertdb.php", params, hAsyncHTTP);
+            params.put("recbeacons", dbStr);
+            client.post("http://www.yiezi.com/beacons/common/insertrec.php", params, hAsyncHTTP);
         }
     }
 
@@ -96,12 +96,13 @@ public class GBMainActivity extends Activity {
                 JSONArray arr = new JSONArray(new String(responseBody));
                 for(int i=0; i<arr.length();i++){
                     JSONObject obj = (JSONObject)arr.get(i);
-                    log("id : "+obj.get("id"));
-                    log("status : "+obj.get("status"));
-                    dbHelper.updateSyncStatus(obj.get("id").toString(),obj.get("status").toString());
+                    log("_id : "+obj.get("_id"));
+                    log("syncstatus : "+obj.get("syncstatus"));
+                    dbHelper.updateSyncStatus(obj.get("_id").toString(),obj.get("syncstatus").toString());
                 }
                 Toast.makeText(mContext, "DB Sync completed!", Toast.LENGTH_LONG).show();
             } catch (JSONException e) {
+                log(e.toString());
                 Toast.makeText(mContext, "Error Occured [Server's JSON response might be invalid]!", Toast.LENGTH_LONG).show();
             }
         }
