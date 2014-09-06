@@ -22,14 +22,12 @@ import android.content.SharedPreferences;
 import android.content.SharedPreferences.Editor;
 import android.location.Location;
 import android.location.LocationListener;
-import android.location.LocationManager;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Message;
 import android.preference.PreferenceManager;
 import android.util.Log;
-import android.widget.Toast;
 
 import com.THLight.USBeacon.App.Lib.iBeaconData;
 import com.THLight.USBeacon.App.Lib.iBeaconScanManager;
@@ -632,7 +630,7 @@ public class GBScanService extends Service implements iBeaconScanManager.OniBeac
                     Message msgBack = mHandler.obtainMessage(MSG_SET_ALARM);
                     GBUtils.syncLocalDBtoServer(mContext, new ServerResponseHandler(mContext,msgBack));
                 } else {
-                    Toast.makeText(mContext, "Please connect to network first!", Toast.LENGTH_LONG).show();
+                	GBUtils.showToastIfEnabled(mContext, "Please connect to network first!");
                 }
                 break;
             }
@@ -659,7 +657,7 @@ public class GBScanService extends Service implements iBeaconScanManager.OniBeac
             }
         }
     }
-
+/*
     private class MyLocationListener implements LocationListener {
 
         @Override
@@ -672,7 +670,7 @@ public class GBScanService extends Service implements iBeaconScanManager.OniBeac
 
         @Override
         public void onProviderDisabled(String provider) {
-            Toast.makeText(mContext, "GPS turn off", Toast.LENGTH_SHORT).show();
+        	GBUtils.showToastIfEnabled(mContext, "GPS turned off");
         }
 
         @Override
@@ -682,7 +680,7 @@ public class GBScanService extends Service implements iBeaconScanManager.OniBeac
         @Override
         public void onStatusChanged(String provider, int status, Bundle extras) {
         }
-    }
+    }*/
 
     private static void log(String s) {
         Log.d(TAG, s);

@@ -16,7 +16,6 @@ import android.preference.PreferenceManager;
 import android.preference.PreferenceScreen;
 import android.util.Log;
 import android.widget.SimpleAdapter;
-import android.widget.Toast;
 
 public class GBPreferenceFrag extends PreferenceFragment implements OnSharedPreferenceChangeListener{
 	private static final String TAG = "GBPreferenceFrag";
@@ -164,7 +163,7 @@ public class GBPreferenceFrag extends PreferenceFragment implements OnSharedPref
                             String minor = majorminor[3];
                             if (GBWatchList.isiBeaconInDefaultList(uuid, major, minor)) {
                                 log("Cannot remove default iBeacon settings");
-                                Toast.makeText(mContext, "Cannot remove default iBeacon settings", Toast.LENGTH_SHORT).show();
+                                GBUtils.showToastIfEnabled(mContext, "Cannot remove default iBeacon settings", true);
                             } else {
                                 String uuidMajMin = uuid + ":" + major + ":" + minor;
                                 log("to be removed : " + uuidMajMin);

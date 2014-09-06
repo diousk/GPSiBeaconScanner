@@ -67,12 +67,24 @@ public class GBUtils {
         if (dbHelper.getAllDBDataCount() != 0 &&
                 dbHelper.getNonSyncDBDataCount() != 0) {
             log("syncLocalDBtoServer: " + jsonDBStr);
-            Toast.makeText(ctx, "Sync DB to server ...", Toast.LENGTH_SHORT).show();
+            showToastIfEnabled(ctx, "Sync DB to server ...");
             params.put("recbeacons", jsonDBStr);
             client.post("http://www.yiezi.com/beacons/common/insertrec.php", params, handlerResp);
         } else {
-            Toast.makeText(ctx, "No data needed to sync", Toast.LENGTH_LONG).show();
+        	showToastIfEnabled(ctx, "No data needed to sync");
         }
+    }
+
+    public static void showToastIfEnabled(Context ctx, String str) {
+    	showToastIfEnabled(ctx, str, false);
+    }
+
+    public static void showToastIfEnabled(Context ctx, String str, boolean ignorePref) {
+    	boolean isToastEnabled = PreferenceManager.getDefaultSharedPreferences(ctx)
+    			.getBoolean("enableToast_pref", false);
+    	if (ignorePref || isToastEnabled) {
+    		Toast.makeText(ctx, str, Toast.LENGTH_LONG).show();
+    	}
     }
 
     private static void log(String s) {

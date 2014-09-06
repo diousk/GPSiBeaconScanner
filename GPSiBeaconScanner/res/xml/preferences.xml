@@ -16,6 +16,11 @@
 	        android:summary="Auto sync database to server after scanning"
 	        android:key="autoSync_pref"
 	        android:defaultValue="false"/>
+	    <CheckBoxPreference
+	        android:title="Enable toast"
+	        android:summary="Enable debug toast"
+	        android:key="enableToast_pref"
+	        android:defaultValue="false"/>
     </PreferenceCategory>
 
     <PreferenceCategory android:title="GPS Settings" >

@@ -8,7 +8,6 @@ import org.json.JSONObject;
 import android.content.Context;
 import android.os.Message;
 import android.util.Log;
-import android.widget.Toast;
 
 import com.loopj.android.http.AsyncHttpResponseHandler;
 
@@ -37,10 +36,10 @@ public class ServerResponseHandler extends AsyncHttpResponseHandler{
                 log("syncstatus : "+obj.get("syncstatus"));
                 dbHelper.updateSyncStatus(obj.get("_id").toString(),obj.get("syncstatus").toString());
             }
-            Toast.makeText(mContext, "DB Sync completed!", Toast.LENGTH_LONG).show();
+            GBUtils.showToastIfEnabled(mContext, "DB Sync completed!");
         } catch (JSONException e) {
             log(e.toString());
-            Toast.makeText(mContext, "Error Occured [Server's JSON response might be invalid]!", Toast.LENGTH_LONG).show();
+            GBUtils.showToastIfEnabled(mContext, "Error Occured [Server's JSON response might be invalid]!");
         }
 
         if (mMessage != null) {
@@ -52,7 +51,7 @@ public class ServerResponseHandler extends AsyncHttpResponseHandler{
     public void onFailure(int statusCode, Header[] headers, byte[] responseBody,
             Throwable error) {
         log("onFailure: " + statusCode + error.getCause());
-        Toast.makeText(mContext, "Failed to sync", Toast.LENGTH_LONG).show();
+        GBUtils.showToastIfEnabled(mContext, "Failed to sync");
 
         if (mMessage != null) {
             mMessage.sendToTarget();

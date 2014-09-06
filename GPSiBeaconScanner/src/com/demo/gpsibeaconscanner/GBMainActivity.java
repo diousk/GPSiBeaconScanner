@@ -23,7 +23,6 @@ import android.widget.Button;
 import android.widget.CompoundButton;
 import android.widget.ListView;
 import android.widget.TextView;
-import android.widget.Toast;
 import android.widget.ToggleButton;
 
 import com.loopj.android.http.AsyncHttpResponseHandler;
@@ -65,7 +64,7 @@ public class GBMainActivity extends Activity {
 		    if (GBUtils.isNetworkOnline(mContext)) {
 		        GBUtils.syncLocalDBtoServer(mContext, hAsyncHTTP);
 		    } else {
-		        Toast.makeText(mContext, "Please connect to network first!", Toast.LENGTH_LONG).show();
+		    	GBUtils.showToastIfEnabled(mContext, "Please connect to network first!", true);
 		    }
 		}
 		return super.onOptionsItemSelected(item);
@@ -111,6 +110,8 @@ public class GBMainActivity extends Activity {
                     if(RESULT_OK == resultCode) {
                         log("REQ_ENABLE_BT - RESULT_OK");
                         checkGPSEnabled();
+                    } else {
+                    	GBUtils.showToastIfEnabled(mContext, "Can not use bluetooth function", true);
                     }
                     break;
                 case REQ_ENABLE_GPS:
@@ -147,7 +148,7 @@ public class GBMainActivity extends Activity {
 	                })
 	                .setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
 	                    public void onClick(DialogInterface dialog, int which) {
-	                        Toast.makeText(mContext, "Can not use gps function", Toast.LENGTH_SHORT).show();
+	                    	GBUtils.showToastIfEnabled(mContext, "Can not use gps function", true);
 	                    }
 	                }).show();
 	        }
