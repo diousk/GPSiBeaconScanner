@@ -44,6 +44,7 @@ public class GBPreferenceFrag extends PreferenceFragment implements OnSharedPref
         SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(mContext);
         prefs.registerOnSharedPreferenceChangeListener(this);
         updatePreferences();
+        GBUtils.showToastIfEnabled(mContext, "Need restart scanning once changed", true);
     }
 
     private void updatePreferences() {

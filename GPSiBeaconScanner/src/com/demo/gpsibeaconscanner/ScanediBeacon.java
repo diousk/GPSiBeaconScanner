@@ -11,6 +11,7 @@ public class ScanediBeacon extends iBeaconData
 	public long lastUpdate= 0;
 	private Object mRssiObj = new Object();
 	LinkedList<Byte> mRssiRecv = new LinkedList<Byte>();
+	public Byte mAvgRssi = 0;
 	private int MAX_QUEUE_LENGTH = 100;
 	
 	/** ================================================ */
@@ -24,6 +25,7 @@ public class ScanediBeacon extends iBeaconData
 		newBeacon.oneMeterRssi	= iBeacon.oneMeterRssi;
 		newBeacon.rssi			= iBeacon.rssi;
 		newBeacon.lastUpdate	= 0;
+		newBeacon.resetRecentRssi();
 		
 		return newBeacon;
 	}
@@ -56,26 +58,19 @@ public class ScanediBeacon extends iBeaconData
 				sum += rssi;
 			}
 			avgRssi = (byte) (sum/mRssiRecv.size());
+			mAvgRssi = avgRssi;
 		}
 		return avgRssi;
 	}
 
 	public byte getAverageRssi() {
-		byte avgRssi = 0;
-		synchronized(mRssiObj)
-		{
-			int sum = 0;
-			for (Byte rssi : mRssiRecv) {
-				sum += rssi;
-			}
-			avgRssi = (byte) (sum/mRssiRecv.size());
-		}
-		return avgRssi;
+		return mAvgRssi;
 	}
 
 	public void resetRecentRssi() {
 		synchronized(mRssiObj)
 		{
+			mAvgRssi = 0;
 			mRssiRecv.clear();
 		}
 	}

@@ -12,6 +12,16 @@
             android:summary="Default value = 5 minutes"
             android:title="Time period inner given region" />
 	    <CheckBoxPreference
+	        android:title="Keep scanning iBeacons"
+	        android:summary="Keep scanning iBeacons after start scanning"
+	        android:key="keepScanBeacon_pref"
+	        android:defaultValue="false"/>
+	    <CheckBoxPreference
+	        android:title="Don't Store iBeacons Data"
+	        android:summary="don't store ibeacon data to database"
+	        android:key="dontSynciBeaconToDB_pref"
+	        android:defaultValue="false"/>
+	    <CheckBoxPreference
 	        android:title="Auto sync database"
 	        android:summary="Auto sync database to server after scanning"
 	        android:key="autoSync_pref"
@@ -60,14 +70,14 @@
     
     <PreferenceCategory android:title="iBeacon Settings" >
         <EditTextPreference
-            android:defaultValue="30"
+            android:defaultValue="10"
             android:key="iBeaconScanningTracking_pref"
-            android:summary="Default value = 30 seconds"
+            android:summary="Default value = 10 seconds"
             android:title="iBeacon tracking time per scanning" />
         <EditTextPreference
-            android:defaultValue="20"
+            android:defaultValue="5"
             android:key="iBeaconInvalidTimeout_pref"
-            android:summary="Default value = 20 seconds"
+            android:summary="Default value = 5 seconds"
             android:title="Timeout for stale iBeacons" />
 
         <Preference
