@@ -1,5 +1,6 @@
 package com.demo.gpsibeaconscanner;
 
+import java.lang.ref.WeakReference;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -21,7 +22,6 @@ import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.content.SharedPreferences.Editor;
 import android.location.Location;
-import android.location.LocationListener;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.IBinder;
@@ -266,7 +266,11 @@ public class GBScanService extends Service implements iBeaconScanManager.OniBeac
     }
 
     private void setupHandler() {
-        mHandler = new ScanHandler();
+    	if (mHandler == null) {
+    		mHandler = new ScanHandler(this);
+    	} else {
+    		mHandler.setTarget(this);
+    	}
     }
 
     private void setupReceiver() {
@@ -528,6 +532,222 @@ public class GBScanService extends Service implements iBeaconScanManager.OniBeac
         }
     }
 
+
+    private class ScanReceiver extends BroadcastReceiver {
+
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            log("onReceive : " + intent.getAction());
+            if (ACTION_SCANNING_START.equals(intent.getAction())) {
+                triggerScanProcedure();
+
+            } else if(ACTION_SCANNING_STOP.equals(intent.getAction())) {
+                // TODO: who should broadcast this intent?
+                Message msg = mHandler.obtainMessage(MSG_STOP_ALL_SCAN);
+                msg.sendToTarget();
+                cancelScanAlarm(mContext);
+            }
+        }
+    }
+
+    static class ScanHandler extends Handler {
+        private WeakReference<GBScanService> mService; 
+
+        ScanHandler(GBScanService service) {
+            mService = new WeakReference<GBScanService>(service);
+        }
+
+        public void setTarget(GBScanService service) {
+        	mService.clear();
+        	mService = new WeakReference<GBScanService>(service);
+		}
+
+		@Override
+        public void handleMessage(Message msg) {
+            GBScanService service = mService.get();
+            if (service != null) {
+                service.handleMessageAlive(msg);
+            }
+        }
+    }
+
+    public void handleMessageAlive(Message msg) {
+        switch (msg.what) {
+        case MSG_START_SCAN_GPS :
+        {
+            log("MSG_START_SCAN_GPS");
+            updateForegroundNotification("Start GPS scanning", "");
+            getAddress();
+            startGps();
+
+            // set timeout to stop GPS scanning
+            Message msgStartTimeOut = new Message();
+            msgStartTimeOut.what = MSG_SCAN_TIME_OUT;
+            mHandler.sendMessageDelayed(msgStartTimeOut, gpstracking * 60 * 1000);
+        }
+            break;
+        case MSG_GPS_LOCATION_FIXED:
+        {
+            log("MSG_GPS_LOCATION_FIXED");
+            Bundle bundle = msg.getData();
+            updateGPSRegion(bundle.getDouble("latitude"),
+                    bundle.getDouble("longitude"));
+
+            Message msgStop = new Message();
+            msgStop.what = MSG_STOP_SCAN_GPS;
+            msgStop.setData(bundle);
+            mHandler.sendMessage(msgStop);
+        }
+            break;
+        case MSG_STOP_SCAN_GPS :
+        {
+            log("MSG_STOP_SCAN_GPS");
+            stopGpsIfPossible();
+
+            Message msgUpdateDB = new Message();
+            msgUpdateDB.what = MSG_UPDATE_DATABASE;
+            msgUpdateDB.arg1 = TYPE_DATA_GPS;
+            msgUpdateDB.setData(msg.getData());
+            mHandler.sendMessage(msgUpdateDB);
+        }
+            break;
+        case MSG_START_SCAN_IBEACON :
+        {
+            log("MSG_START_SCAN_IBEACON");
+            if (!keepScaniBeacon) {
+                // no need to inform because user treat it as always enable
+                updateForegroundNotification("Start iBeacon scanning", "");
+            }
+            synchronized (mBeaconsObj) {
+                miBeacons.clear();
+            }
+
+            int timeForScaning = msg.arg1;
+            log("MSG_START_SCAN_IBEACON - timeForScaning : " + timeForScaning);
+
+            miScaner.startScaniBeacon(timeForScaning); //asynchronous
+            mHandler.removeMessages(MSG_STOP_SCAN_IBEACON);
+            mHandler.sendMessageDelayed(
+            mHandler.obtainMessage(MSG_STOP_SCAN_IBEACON),
+                    timeForScaning + 1000);
+        }
+            break;
+        case MSG_STOP_SCAN_IBEACON :
+        {
+            log("MSG_STOP_SCAN_IBEACON");
+            miScaner.stopScaniBeacon();
+            verifyValidiBeacons();
+            updateBTRegion();
+            // update database
+            mHandler.sendMessage(mHandler.obtainMessage(
+                    MSG_UPDATE_DATABASE, TYPE_DATA_IBEACON, 0));
+            if (keepScaniBeacon) {
+                sendStartScaniBeaconMsg();
+            }
+        }
+            break;
+        case MSG_STOP_ALL_SCAN :
+        {
+            log("MSG_STOP_ALL_SCAN");
+            //TODO: do something?
+        }
+            break;
+        case MSG_UPDATE_DATABASE :
+        {
+            int updateType = msg.arg1;
+            log("MSG_UPDATE_DATABASE - type: " + updateType);
+            updateDatabase(updateType, msg.getData());
+
+            if (TYPE_DATA_GPS == updateType) {
+                // GPS scanning completed, start scan iBeacon
+                if (!keepScaniBeacon) {
+                    // scan iBeacon only when this flag not set
+                    sendStartScaniBeaconMsg();
+                } else {
+                    endScanPeriod(true);// set alarm
+                }
+            } else if (TYPE_DATA_IBEACON == updateType) {
+                if (!keepScaniBeacon) {
+                    endScanPeriod(true);// set alarm
+                } else {
+                    endScanPeriod(false);// do not set alarm
+                }
+            }
+        }
+            break;
+        case MSG_SCAN_TIME_OUT :
+        {
+            log("MSG_SCAN_TIME_OUT");
+            // fake address 0 0
+            Bundle bundle = new Bundle();
+            bundle.putDouble("latitude", 0.0);
+            bundle.putDouble("longitude", 0.0);
+
+            Message msgStop = new Message();
+            msgStop.what = MSG_STOP_SCAN_GPS;
+            msgStop.setData(bundle);
+            mHandler.sendMessage(msgStop);
+        }
+            break;
+        case MSG_SET_ALARM :
+        {
+        	log("MSG_SET_ALARM");
+        	long triggerTime = setupScanAlarms(mContext);
+        	// calculate readable time and show on notification
+            SimpleDateFormat sdf = new SimpleDateFormat(
+                    "yyyy/MM/dd HH:mm:ss", Locale.getDefault());
+            Date resultdate = new Date(triggerTime);
+            String readableDate = sdf.format(resultdate);
+            log("Next scanning: "+ readableDate);
+            updateForegroundNotification("Next scanning: ", readableDate);
+
+            if (!keepScaniBeacon) {
+                GBUtils.releaseCpuWakeLock();
+            }
+        	break;
+        }
+        case MSG_SYNC_DB_TO_SERVER:
+        {
+            log("MSG_SYNC_DB_TO_SERVER");
+            if (GBUtils.isNetworkOnline(mContext)) {
+                Message msgBack = mHandler.obtainMessage(MSG_SET_ALARM);
+                GBUtils.syncLocalDBtoServer(mContext, new ServerResponseHandler(mContext,msgBack));
+            } else {
+            	GBUtils.showToastIfEnabled(mContext, "Please connect to network first!");
+            }
+            break;
+        }
+        default :
+        	log("Should not be here.");
+        	break;
+        }
+    }
+
+/*
+    private class MyLocationListener implements LocationListener {
+
+        @Override
+        public void onLocationChanged(Location location) {
+            log("Got location fixed: Lat = " + location.getLatitude() + " , Long = " + location.getLongitude());
+            //stopGps();
+            sendLocationFixedMsg(
+                    location.getLatitude(), location.getLongitude());
+        }
+
+        @Override
+        public void onProviderDisabled(String provider) {
+        	GBUtils.showToastIfEnabled(mContext, "GPS turned off");
+        }
+
+        @Override
+        public void onProviderEnabled(String provider) {
+        }
+
+        @Override
+        public void onStatusChanged(String provider, int status, Bundle extras) {
+        }
+    }*/
+    /*
     private class ScanHandler extends Handler {
 
         @Override
@@ -588,9 +808,9 @@ public class GBScanService extends Service implements iBeaconScanManager.OniBeac
                 log("MSG_START_SCAN_IBEACON - timeForScaning : " + timeForScaning);
 
                 miScaner.startScaniBeacon(timeForScaning); //asynchronous
-                this.removeMessages(MSG_STOP_SCAN_IBEACON);
-                this.sendMessageDelayed(
-                        this.obtainMessage(MSG_STOP_SCAN_IBEACON),
+                mHandler.removeMessages(MSG_STOP_SCAN_IBEACON);
+                mHandler.sendMessageDelayed(
+                		mHandler.obtainMessage(MSG_STOP_SCAN_IBEACON),
                         timeForScaning + 1000);
             }
                 break;
@@ -601,7 +821,7 @@ public class GBScanService extends Service implements iBeaconScanManager.OniBeac
                 verifyValidiBeacons();
                 updateBTRegion();
                 // update database
-                this.sendMessage(this.obtainMessage(
+                mHandler.sendMessage(mHandler.obtainMessage(
                         MSG_UPDATE_DATABASE, TYPE_DATA_IBEACON, 0));
                 if (keepScaniBeacon) {
                     sendStartScaniBeaconMsg();
@@ -684,49 +904,7 @@ public class GBScanService extends Service implements iBeaconScanManager.OniBeac
             	break;
             }
         }
-    }
-
-    private class ScanReceiver extends BroadcastReceiver {
-
-        @Override
-        public void onReceive(Context context, Intent intent) {
-            log("onReceive : " + intent.getAction());
-            if (ACTION_SCANNING_START.equals(intent.getAction())) {
-                triggerScanProcedure();
-
-            } else if(ACTION_SCANNING_STOP.equals(intent.getAction())) {
-                // TODO: who should broadcast this intent?
-                Message msg = mHandler.obtainMessage(MSG_STOP_ALL_SCAN);
-                msg.sendToTarget();
-                cancelScanAlarm(mContext);
-            }
-        }
-    }
-/*
-    private class MyLocationListener implements LocationListener {
-
-        @Override
-        public void onLocationChanged(Location location) {
-            log("Got location fixed: Lat = " + location.getLatitude() + " , Long = " + location.getLongitude());
-            //stopGps();
-            sendLocationFixedMsg(
-                    location.getLatitude(), location.getLongitude());
-        }
-
-        @Override
-        public void onProviderDisabled(String provider) {
-        	GBUtils.showToastIfEnabled(mContext, "GPS turned off");
-        }
-
-        @Override
-        public void onProviderEnabled(String provider) {
-        }
-
-        @Override
-        public void onStatusChanged(String provider, int status, Bundle extras) {
-        }
     }*/
-
     private static void log(String s) {
         Log.d(TAG, s);
     }

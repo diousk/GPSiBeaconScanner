@@ -8,17 +8,11 @@ import android.content.Context;
 import android.database.Cursor;
 import android.graphics.Color;
 import android.text.TextUtils;
-import android.util.Log;
 import android.view.View;
 import android.widget.ResourceCursorAdapter;
 import android.widget.TextView;
 
 public class GBCursorAdapter extends ResourceCursorAdapter {
-    private static final String TAG = "GBCursorAdapter";
-
-    private static void log(String s){
-        Log.d(TAG, s);
-    }
 
     public GBCursorAdapter(Context context, int layout, Cursor c, int flags) {
         super(context, layout, c, flags);

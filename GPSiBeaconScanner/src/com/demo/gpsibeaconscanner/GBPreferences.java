@@ -3,14 +3,9 @@ package com.demo.gpsibeaconscanner;
 import android.app.ActionBar;
 import android.app.Activity;
 import android.os.Bundle;
-import android.util.Log;
 import android.view.MenuItem;
 
 public class GBPreferences extends Activity {
-    private static final String TAG = "GBPreferences";
-    private static void log(String s) {
-        Log.d(TAG, s);
-    }
 
 	 @Override
 	 protected void onCreate(Bundle savedInstanceState) {
